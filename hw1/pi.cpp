@@ -2,14 +2,8 @@
  * Author:         scps950707
  * Email:          scps950707@gmail.com
  * Created:        2017-10-23 17:19
- * Last Modified:  2017-10-24 17:40
+ * Last Modified:  2017-10-25 14:46
  * Filename:       pi.cpp
- */
-
-/*
- * After some experiments -O2 opimization make program too fast so that
- * I can't find speedup with threads, but without O2 flag the speed has
- * positive correlation with num of threads.
  */
 
 #include<iostream>
@@ -18,16 +12,21 @@
 #include<cstdint>
 #include<pthread.h>
 #include<chrono>
+#include<iomanip>
 using namespace std;
-random_device rd;
-mt19937 gen( rd() );
-uniform_real_distribution<double> dis( -1.0, 1.0 );
 
 uint64_t number_in_circle = 0;
 pthread_mutex_t mutexNCircle;
 
 void *getPI( void *n )
 {
+    random_device rd;
+    mt19937 gen( rd() );
+    uniform_real_distribution<double> dis( -1.0, 1.0 );
+    /*
+     * Put random generator in thread because it's implementation has lock
+     * shared variable so this will be bottle neck for speed performance.
+     */
     uint64_t number_of_tosses = *( static_cast<uint64_t *>( n ) );
     uint64_t localNumberInCircle = 0;
     while ( number_of_tosses-- )
@@ -36,7 +35,7 @@ void *getPI( void *n )
         double y = dis( gen );
         if ( x * x + y * y <= 1.0 )
         {
-            localNumberInCircle++;
+            ++localNumberInCircle;
         }
     }
     pthread_mutex_lock( &mutexNCircle );
@@ -55,7 +54,7 @@ int main( int argc, char *argv[] )
     uint64_t nTosses = strtoull( argv[2], NULL, 10 );
     uint64_t nTossesPerThread = nTosses / nCPU;
 
-    pthread_t *threadPools = ( pthread_t * )malloc( sizeof( pthread_t ) * nCPU );
+    pthread_t *threadPools = new pthread_t[nCPU];
     pthread_mutex_init( &mutexNCircle, NULL );
 #ifdef __DEBUG__
     auto t1 = chrono::high_resolution_clock::now();
@@ -71,11 +70,14 @@ int main( int argc, char *argv[] )
 #ifdef __DEBUG__
     auto t2 = chrono::high_resolution_clock::now();
     auto dur = chrono::duration_cast<chrono::milliseconds>( t2 - t1 );
-    cout << "Compute PI with " << nCPU << " CPUs Time:" << dur.count() << "msec" << endl;
+    cout << "[" << __FILE__ << "]"
+         << "nTosses:" << setw( 10 ) << nTosses
+         << " CPUs:" << setw( 2 ) << nCPU
+         << " Time:" << setw( 5 ) << dur.count() << "msec"
+         << endl;
 #endif
     pthread_mutex_destroy( &mutexNCircle );
-    free( threadPools );
-
+    delete[] threadPools;
     cout << ( number_in_circle << 2 ) / static_cast<double>( nTosses ) << endl;
     return EXIT_SUCCESS;
 }
