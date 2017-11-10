@@ -154,7 +154,7 @@ int main( int argc, char *argv[] )
     //      Shift the col index vals from actual (firstcol --> lastcol )
     //      to local, i.e., (0 --> lastcol-firstcol)
     //---------------------------------------------------------------------
-    #pragma omp parallel for
+    #pragma omp parallel for private(k) collapse(2)
     for ( j = 0; j < lastrow - firstrow + 1; j++ )
     {
         for ( k = rowstr[j]; k < rowstr[j + 1]; k++ )
@@ -610,10 +610,11 @@ static void sparse( double a[],
     /* { */
     /*     rowstr[j] = 0; */
     /* } */
-    memset( rowstr, 0, nrows + 1 );
+    memset( rowstr, 0, sizeof( int ) * ( nrows + 1 ) );
 
     for ( i = 0; i < n; i++ )
     {
+        #pragma omp parallel for
         for ( nza = 0; nza < arow[i]; nza++ )
         {
             j = acol[i][nza] + 1;
@@ -642,15 +643,16 @@ static void sparse( double a[],
     //---------------------------------------------------------------------
     // ... preload data pages
     //---------------------------------------------------------------------
-    #pragma omp parallel for private(k)
+    memset( nzloc, 0, sizeof( int )*nrows );
     for ( j = 0; j < nrows; j++ )
     {
+        #pragma omp parallel for
         for ( k = rowstr[j]; k < rowstr[j + 1]; k++ )
         {
             a[k] = 0.0;
             colidx[k] = -1;
         }
-        nzloc[j] = 0;
+        /* nzloc[j] = 0; */
     }
 
     //---------------------------------------------------------------------
