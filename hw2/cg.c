@@ -2,7 +2,7 @@
  * Author:         scps950707
  * Email:          scps950707@gmail.com
  * Created:        2017-11-08 20:09
- * Last Modified:  2017-11-09 15:03
+ * Last Modified:  2017-11-10 16:19
  * Filename:       cg.c
  */
 
@@ -154,7 +154,7 @@ int main( int argc, char *argv[] )
     //      Shift the col index vals from actual (firstcol --> lastcol )
     //      to local, i.e., (0 --> lastcol-firstcol)
     //---------------------------------------------------------------------
-    #pragma omp parallel for private(k) collapse(2)
+    #pragma omp parallel for private(k)
     for ( j = 0; j < lastrow - firstrow + 1; j++ )
     {
         for ( k = rowstr[j]; k < rowstr[j + 1]; k++ )
