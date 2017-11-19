@@ -2,7 +2,7 @@
  * Author:         scps950707
  * Email:          scps950707@gmail.com
  * Created:        2017-11-18 17:20
- * Last Modified:  2017-11-19 16:44
+ * Last Modified:  2017-11-19 17:21
  * Filename:       prime.c
  */
 #include <stdio.h>
@@ -38,14 +38,11 @@ int main( int argc, char *argv[] )
         rank = 0,
         size = 0;
     long long int n, limit;
-#ifdef __DEBUG__
-    double begin;
-#endif
     MPI_Init( &argc, &argv );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank );
     MPI_Comm_size( MPI_COMM_WORLD, &size );
 #ifdef __DEBUG__
-    begin = MPI_Wtime();
+    double begin = MPI_Wtime();
 #endif
     sscanf( argv[1], "%llu", &limit );
     if ( rank == 0 )
