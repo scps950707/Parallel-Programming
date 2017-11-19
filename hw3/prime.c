@@ -2,7 +2,7 @@
  * Author:         scps950707
  * Email:          scps950707@gmail.com
  * Created:        2017-11-18 17:20
- * Last Modified:  2017-11-19 16:01
+ * Last Modified:  2017-11-19 16:44
  * Filename:       prime.c
  */
 #include <stdio.h>
@@ -52,7 +52,6 @@ int main( int argc, char *argv[] )
     {
         printf( "Starting. Numbers to be scanned= %lld\n", limit );
     }
-    lpc = 0;
     int start = 11 + 2 * rank, step = 2 * size;
     for ( n = start; n <= limit; n += step )
     {
