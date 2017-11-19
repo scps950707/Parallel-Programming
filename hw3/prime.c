@@ -2,12 +2,13 @@
  * Author:         scps950707
  * Email:          scps950707@gmail.com
  * Created:        2017-11-18 17:20
- * Last Modified:  2017-11-18 17:21
+ * Last Modified:  2017-11-19 16:01
  * Filename:       prime.c
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <mpi.h>
 
 int isprime( int n )
 {
@@ -30,24 +31,47 @@ int isprime( int n )
 
 int main( int argc, char *argv[] )
 {
-    int pc,       /* prime counter */
-        foundone; /* most recent prime found */
+    int pc = 0,     /* prime counter */
+        lpc = 0,
+        foundone = 0, /* most recent prime found */
+        lfoundone = 0,
+        rank = 0,
+        size = 0;
     long long int n, limit;
-
+#ifdef __DEBUG__
+    double begin;
+#endif
+    MPI_Init( &argc, &argv );
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+    MPI_Comm_size( MPI_COMM_WORLD, &size );
+#ifdef __DEBUG__
+    begin = MPI_Wtime();
+#endif
     sscanf( argv[1], "%llu", &limit );
-    printf( "Starting. Numbers to be scanned= %lld\n", limit );
-
-    pc = 4;   /* Assume (2,3,5,7) are counted here */
-
-    for ( n = 11; n <= limit; n = n + 2 )
+    if ( rank == 0 )
+    {
+        printf( "Starting. Numbers to be scanned= %lld\n", limit );
+    }
+    lpc = 0;
+    int start = 11 + 2 * rank, step = 2 * size;
+    for ( n = start; n <= limit; n += step )
     {
         if ( isprime( n ) )
         {
-            pc++;
-            foundone = n;
+            ++lpc;
+            lfoundone = n;
         }
     }
-    printf( "Done. Largest prime is %d Total primes %d\n", foundone, pc );
-
+    MPI_Reduce( &lpc, &pc, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD );
+    MPI_Reduce( &lfoundone, &foundone, 1, MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD );
+    if ( rank == 0 )
+    {
+        pc += 4;   /* Assume (2,3,5,7) are counted here */
+        printf( "Done. Largest prime is %d Total primes %d\n", foundone, pc );
+#ifdef __DEBUG__
+        printf( "Time:%.3fs\n", MPI_Wtime() - begin );
+#endif
+    }
+    MPI_Finalize();
     return 0;
 }
