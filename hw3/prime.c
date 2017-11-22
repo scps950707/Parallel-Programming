@@ -2,7 +2,7 @@
  * Author:         scps950707
  * Email:          scps950707@gmail.com
  * Created:        2017-11-18 17:20
- * Last Modified:  2017-11-19 17:21
+ * Last Modified:  2017-11-22 17:04
  * Filename:       prime.c
  */
 #include <stdio.h>
@@ -10,12 +10,12 @@
 #include <math.h>
 #include <mpi.h>
 
-int isprime( int n )
+int isprime( long long int n )
 {
-    int i, squareroot;
+    long long int i, squareroot;
     if ( n > 10 )
     {
-        squareroot = ( int ) sqrt( n );
+        squareroot = ( long long int ) sqrt( n );
         for ( i = 3; i <= squareroot; i = i + 2 )
             if ( ( n % i ) == 0 )
             {
@@ -31,12 +31,11 @@ int isprime( int n )
 
 int main( int argc, char *argv[] )
 {
-    int pc = 0,     /* prime counter */
-        lpc = 0,
-        foundone = 0, /* most recent prime found */
-        lfoundone = 0,
-        rank = 0,
-        size = 0;
+    long long int pc = 0,     /* prime counter */
+                  lpc = 0,
+                  foundone = 0, /* most recent prime found */
+                  lfoundone = 0;
+    int rank = 0, size = 0;
     long long int n, limit;
     MPI_Init( &argc, &argv );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank );
@@ -63,7 +62,7 @@ int main( int argc, char *argv[] )
     if ( rank == 0 )
     {
         pc += 4;   /* Assume (2,3,5,7) are counted here */
-        printf( "Done. Largest prime is %d Total primes %d\n", foundone, pc );
+        printf( "Done. Largest prime is %lld Total primes %lld\n", foundone, pc );
 #ifdef __DEBUG__
         printf( "Time:%.3fs\n", MPI_Wtime() - begin );
 #endif
