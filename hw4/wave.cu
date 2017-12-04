@@ -2,7 +2,7 @@
  * Author:         scps950707
  * Email:          scps950707@gmail.com
  * Created:        2017-12-04 12:09
- * Last Modified:  2017-12-04 17:37
+ * Last Modified:  2017-12-04 18:21
  * Filename:       wave.cu
  * description: Serial Concurrent Wave Equation - C Version
  *              This program implements the concurrent wave equation
@@ -71,7 +71,7 @@ void check_param( void )
  *     initialize points on line
  *     Update all values along line a specified number of times
  *********************************************************************/
-__global__ void initAndUpdate( float *D_oldVal, float *D_currVal, float *D_newVal, int tpoints, int nsteps )
+__global__ void initAndUpdate( float *D_oldVal, float *D_currVal, int tpoints, int nsteps )
 {
     int j = blockDim.x * blockIdx.x + threadIdx.x;
     if ( j < tpoints )
@@ -82,21 +82,21 @@ __global__ void initAndUpdate( float *D_oldVal, float *D_currVal, float *D_newVa
         float x = ( float )( j - 1 ) / ( tpoints - 1 );
         D_oldVal[j] = D_currVal[j] = sin ( (float)6.2831853 * x );
         int i;
-        /* Update values for each time step */
-        for ( i = 1; i <= nsteps; i++ )
+        /* global endpoints */
+        if ( ( j == 1 ) || ( j  == tpoints ) )
         {
-            /* global endpoints */
-            if ( ( j == 1 ) || ( j  == tpoints ) )
+            D_currVal[j] = 0.0;
+        }
+        else
+        {
+            /* Update values for each time step */
+            for ( i = 1; i <= nsteps; i++ )
             {
-                D_newVal[j] = 0.0;
+                /* Update old values with new values */
+                float newVal = ( 2.0 * D_currVal[j] ) - D_oldVal[j] + ( 0.09f * ( -2.0 ) * D_currVal[j] );
+                D_oldVal[j] = D_currVal[j];
+                D_currVal[j] = newVal;
             }
-            else
-            {
-                D_newVal[j] = ( 2.0 * D_currVal[j] ) - D_oldVal[j] + ( 0.09f * ( -2.0 ) * D_currVal[j] );
-            }
-            /* Update old values with new values */
-            D_oldVal[j] = D_currVal[j];
-            D_currVal[j] = D_newVal[j];
         }
     }
 }
@@ -130,18 +130,17 @@ int main( int argc, char *argv[] )
 
     int threadsPerBlock = 256;
     int blocksPerGrid = ( tpoints + threadsPerBlock - 1 ) / threadsPerBlock;
-    float *D_currVal, *D_oldVal, *D_newVal;
+    float *D_currVal, *D_oldVal;
 
     HANDLE_ERROR( cudaMalloc( ( void ** )&D_currVal, sizeof( float ) * ( tpoints + 2 ) ) );
     HANDLE_ERROR( cudaMalloc( ( void ** )&D_oldVal, sizeof( float ) * ( tpoints + 2 ) ) );
-    HANDLE_ERROR( cudaMalloc( ( void ** )&D_newVal, sizeof( float ) * ( tpoints + 2 ) ) );
 
     printf( "Initializing points on the line...\n" );
     printf( "Updating all points for all time steps...\n" );
 #if __DEBUG__
     clock_t t = clock();
 #endif
-    initAndUpdate <<<blocksPerGrid, threadsPerBlock>>>( D_oldVal, D_currVal, D_newVal, tpoints, nsteps );
+    initAndUpdate <<<blocksPerGrid, threadsPerBlock>>>( D_oldVal, D_currVal, tpoints, nsteps );
     HANDLE_ERROR( cudaMemcpy( H_currVal, D_currVal, sizeof( float ) * ( tpoints + 2 ), cudaMemcpyDeviceToHost ) );
 #if __DEBUG__
     t = clock() - t;
@@ -155,7 +154,6 @@ int main( int argc, char *argv[] )
 
     HANDLE_ERROR( cudaFree( D_currVal ) );
     HANDLE_ERROR( cudaFree( D_oldVal ) );
-    HANDLE_ERROR( cudaFree( D_newVal ) );
 
     return EXIT_SUCCESS;
 }
