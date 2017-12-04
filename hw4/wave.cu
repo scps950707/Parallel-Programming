@@ -2,7 +2,7 @@
  * Author:         scps950707
  * Email:          scps950707@gmail.com
  * Created:        2017-12-04 12:09
- * Last Modified:  2017-12-04 16:57
+ * Last Modified:  2017-12-04 17:37
  * Filename:       wave.cu
  * description: Serial Concurrent Wave Equation - C Version
  *              This program implements the concurrent wave equation
@@ -67,32 +67,20 @@ void check_param( void )
     printf( "Using points = %d, steps = %d\n", tpoints, nsteps );
 
 }
-
 /**********************************************************************
- *     Initialize points on line
- *********************************************************************/
-__global__ void init_line( float *D_oldVal, float *D_currVal, int tpoints )
-{
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-    if ( i < tpoints )
-    {
-        i += 1;
-        /* Calculate initial values based on sine curve */
-        /* Initialize old values array */
-        float x = ( float )( i - 1 ) / ( tpoints - 1 );
-        D_oldVal[i] = D_currVal[i] = sin ( (float)6.2831853 * x );
-    }
-}
-
-/**********************************************************************
+ *     initialize points on line
  *     Update all values along line a specified number of times
  *********************************************************************/
-__global__ void update( float *D_oldVal, float *D_currVal, float *D_newVal, int tpoints, int nsteps )
+__global__ void initAndUpdate( float *D_oldVal, float *D_currVal, float *D_newVal, int tpoints, int nsteps )
 {
     int j = blockDim.x * blockIdx.x + threadIdx.x;
     if ( j < tpoints )
     {
         j += 1;
+        /* Calculate initial values based on sine curve */
+        /* Initialize old values array */
+        float x = ( float )( j - 1 ) / ( tpoints - 1 );
+        D_oldVal[j] = D_currVal[j] = sin ( (float)6.2831853 * x );
         int i;
         /* Update values for each time step */
         for ( i = 1; i <= nsteps; i++ )
@@ -149,12 +137,11 @@ int main( int argc, char *argv[] )
     HANDLE_ERROR( cudaMalloc( ( void ** )&D_newVal, sizeof( float ) * ( tpoints + 2 ) ) );
 
     printf( "Initializing points on the line...\n" );
+    printf( "Updating all points for all time steps...\n" );
 #if __DEBUG__
     clock_t t = clock();
 #endif
-    init_line <<<blocksPerGrid, threadsPerBlock>>>( D_oldVal, D_currVal, tpoints );
-    printf( "Updating all points for all time steps...\n" );
-    update <<<blocksPerGrid, threadsPerBlock>>>( D_oldVal, D_currVal, D_newVal, tpoints, nsteps );
+    initAndUpdate <<<blocksPerGrid, threadsPerBlock>>>( D_oldVal, D_currVal, D_newVal, tpoints, nsteps );
     HANDLE_ERROR( cudaMemcpy( H_currVal, D_currVal, sizeof( float ) * ( tpoints + 2 ), cudaMemcpyDeviceToHost ) );
 #if __DEBUG__
     t = clock() - t;
