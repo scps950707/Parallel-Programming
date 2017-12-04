@@ -159,12 +159,21 @@ int main( int argc, char *argv[] )
     sscanf( argv[2], "%d", &nsteps );
     check_param();
     printf( "Initializing points on the line...\n" );
+#if __DEBUG__
+    clock_t t = clock();
+#endif
     init_line();
     printf( "Updating all points for all time steps...\n" );
     update();
+#if __DEBUG__
+    t = clock() - t;
+#endif
     printf( "Printing final results...\n" );
     printfinal();
     printf( "\nDone.\n\n" );
+#if __DEBUG__
+    printf( "time:%f\n", ( float )t / CLOCKS_PER_SEC );
+#endif
 
     return 0;
 }
