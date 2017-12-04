@@ -2,7 +2,7 @@
  * Author:         scps950707
  * Email:          scps950707@gmail.com
  * Created:        2017-12-04 12:09
- * Last Modified:  2017-12-04 18:21
+ * Last Modified:  2017-12-04 18:42
  * Filename:       wave.cu
  * description: Serial Concurrent Wave Equation - C Version
  *              This program implements the concurrent wave equation
@@ -80,7 +80,7 @@ __global__ void initAndUpdate( float *D_oldVal, float *D_currVal, int tpoints, i
         /* Calculate initial values based on sine curve */
         /* Initialize old values array */
         float x = ( float )( j - 1 ) / ( tpoints - 1 );
-        D_oldVal[j] = D_currVal[j] = sin ( (float)6.2831853 * x );
+        D_oldVal[j] = D_currVal[j] = sin ( 6.2831853f * x );
         int i;
         /* global endpoints */
         if ( ( j == 1 ) || ( j  == tpoints ) )
