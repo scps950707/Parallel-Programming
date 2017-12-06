@@ -195,8 +195,137 @@ _cvCheckPixelBackgroundNP( long pixel,
     return 0;
 }
 
+class MMESKNNInvoker : public cv::ParallelLoopBody
+{
+public:
+    MMESKNNInvoker(
+        cv::Mat *src, cv::Mat *dst,
+        int m_nN,
+        uchar *m_aModel,
+        /* _cvUpdatePixelBackgroundNP */
+        uchar *m_nNextLongUpdate,
+        uchar *m_nNextMidUpdate,
+        uchar *m_nNextShortUpdate,
+        uchar *m_aModelIndexLong,
+        uchar *m_aModelIndexMid,
+        uchar *m_aModelIndexShort,
+        int m_nLongCounter,
+        int m_nMidCounter,
+        int m_nShortCounter,
+        int m_nLongUpdate,
+        int m_nMidUpdate,
+        int m_nShortUpdate,
+        /* _cvCheckPixelBackgroundNP */
+        float m_fTb,
+        int m_nkNN,
+        float m_fTau,
+        int m_nShadowDetection
+    ):
+        src( src ),
+        dst( dst ),
+        m_nN( m_nN ),
+        m_aModel( m_aModel ),
+        /* _cvUpdatePixelBackgroundNP */
+        m_nNextLongUpdate( m_nNextLongUpdate ),
+        m_nNextMidUpdate( m_nNextMidUpdate ),
+        m_nNextShortUpdate( m_nNextShortUpdate ),
+        m_aModelIndexLong( m_aModelIndexLong ),
+        m_aModelIndexMid( m_aModelIndexMid ),
+        m_aModelIndexShort( m_aModelIndexShort ),
+        m_nLongCounter( m_nLongCounter ),
+        m_nMidCounter( m_nMidCounter ),
+        m_nShortCounter( m_nShortCounter ),
+        m_nLongUpdate( m_nLongUpdate ),
+        m_nMidUpdate( m_nMidUpdate ),
+        m_nShortUpdate( m_nShortUpdate ),
+        /* _cvCheckPixelBackgroundNP */
+        m_fTb( m_fTb ),
+        m_nkNN( m_nkNN ),
+        m_fTau( m_fTau ),
+        m_nShadowDetection( m_nShadowDetection )
+    {
+        nchannels = CV_MAT_CN( src->type() );
+    }
+    void operator()( const cv::Range &range ) const
+    {
+        //go through the image
+        int y = range.start;
+        for ( int x = 0; x < src->cols; x++ )
+        {
+            const uchar *data = src->ptr( y, x );
+
+            //update model+ background subtract
+            uchar include = 0;
+            int i = y * src->cols + x;
+            int result = _cvCheckPixelBackgroundNP( i, data, nchannels,
+                                                    m_nN,
+                                                    m_aModel,
+                                                    m_fTb,
+                                                    m_nkNN,
+                                                    m_fTau,
+                                                    m_nShadowDetection,
+                                                    include );
+
+            _cvUpdatePixelBackgroundNP( i, data, nchannels,
+                                        m_nN, m_aModel,
+                                        m_nNextLongUpdate,
+                                        m_nNextMidUpdate,
+                                        m_nNextShortUpdate,
+                                        m_aModelIndexLong,
+                                        m_aModelIndexMid,
+                                        m_aModelIndexShort,
+                                        m_nLongCounter,
+                                        m_nMidCounter,
+                                        m_nShortCounter,
+                                        m_nLongUpdate,
+                                        m_nMidUpdate,
+                                        m_nShortUpdate,
+                                        include
+                                      );
+            switch ( result )
+            {
+            case 0:
+                //foreground
+                *( dst->ptr( y, x ) ) = 255;
+                break;
+            case 1:
+                //background
+                *( dst->ptr( y, x ) ) = 0;
+                break;
+            case 2:
+                //shadow
+                *( dst->ptr( y, x ) ) = 127;
+                break;
+            }
+        }
+    }
+private:
+    cv::Mat *src, *dst;
+    int nchannels;
+    int m_nN;
+    uchar *m_aModel;
+    /* _cvUpdatePixelBackgroundNP */
+    uchar *m_nNextLongUpdate;
+    uchar *m_nNextMidUpdate;
+    uchar *m_nNextShortUpdate;
+    uchar *m_aModelIndexLong;
+    uchar *m_aModelIndexMid;
+    uchar *m_aModelIndexShort;
+    int m_nLongCounter;
+    int m_nMidCounter;
+    int m_nShortCounter;
+    int m_nLongUpdate;
+    int m_nMidUpdate;
+    int m_nShortUpdate;
+    /* _cvCheckPixelBackgroundNP */
+    float m_fTb;
+    int m_nkNN;
+    float m_fTau;
+    int m_nShadowDetection;
+};
+
 static inline void
-icvUpdatePixelBackgroundNP( const cv::Mat &_src, cv::Mat &_dst,
+icvUpdatePixelBackgroundNP( cv::Mat &_src, cv::Mat &_dst,
                             cv::Mat &_bgmodel,
                             cv::Mat &_nNextLongUpdate,
                             cv::Mat &_nNextMidUpdate,
@@ -273,53 +402,80 @@ icvUpdatePixelBackgroundNP( const cv::Mat &_src, cv::Mat &_dst,
         _nLongCounter = 0;
     }
 
+    parallel_for_( cv::Range( 0, _src.rows ),
+                   MMESKNNInvoker( &_src,
+                                   &_dst,
+                                   m_nN,
+                                   m_aModel,
+                                   m_nNextLongUpdate,
+                                   m_nNextMidUpdate,
+                                   m_nNextShortUpdate,
+                                   m_aModelIndexLong,
+                                   m_aModelIndexMid,
+                                   m_aModelIndexShort,
+                                   m_nLongCounter,
+                                   m_nMidCounter,
+                                   m_nShortCounter,
+                                   m_nLongUpdate,
+                                   m_nMidUpdate,
+                                   m_nShortUpdate,
+                                   m_fTb,
+                                   m_nkNN,
+                                   m_fTau,
+                                   m_bShadowDetection ) );
     //go through the image
-    long i = 0;
-    for ( long y = 0; y < _src.rows; y++ )
-    {
-        for ( long x = 0; x < _src.cols; x++ )
-        {
-            const uchar *data = _src.ptr( ( int )y, ( int )x );
+    /* long i = 0; */
+    /* for ( long y = 0; y < _src.rows; y++ ) */
+    /* { */
+    /*     for ( long x = 0; x < _src.cols; x++ ) */
+    /*     { */
+    /*         const uchar *data = _src.ptr( ( int )y, ( int )x ); */
 
-            //update model+ background subtract
-            uchar include = 0;
-            int result = _cvCheckPixelBackgroundNP( i, data, nchannels,
-                                                    m_nN, m_aModel, m_fTb, m_nkNN, m_fTau, m_bShadowDetection, include );
+    /*         //update model+ background subtract */
+    /*         uchar include = 0; */
+    /*         int result = _cvCheckPixelBackgroundNP( i, data, nchannels, */
+    /*                                                 m_nN, */
+    /*                                                 m_aModel, */
+    /*                                                 m_fTb, */
+    /*                                                 m_nkNN, */
+    /*                                                 m_fTau, */
+    /*                                                 m_bShadowDetection, */
+    /*                                                 include ); */
 
-            _cvUpdatePixelBackgroundNP( i, data, nchannels,
-                                        m_nN, m_aModel,
-                                        m_nNextLongUpdate,
-                                        m_nNextMidUpdate,
-                                        m_nNextShortUpdate,
-                                        m_aModelIndexLong,
-                                        m_aModelIndexMid,
-                                        m_aModelIndexShort,
-                                        m_nLongCounter,
-                                        m_nMidCounter,
-                                        m_nShortCounter,
-                                        m_nLongUpdate,
-                                        m_nMidUpdate,
-                                        m_nShortUpdate,
-                                        include
-                                      );
-            switch ( result )
-            {
-            case 0:
-                //foreground
-                *_dst.ptr( ( int )y, ( int )x ) = 255;
-                break;
-            case 1:
-                //background
-                *_dst.ptr( ( int )y, ( int )x ) = 0;
-                break;
-            case 2:
-                //shadow
-                *_dst.ptr( ( int )y, ( int )x ) = nShadowDetection;
-                break;
-            }
-            i++;
-        }
-    }
+    /*         _cvUpdatePixelBackgroundNP( i, data, nchannels, */
+    /*                                     m_nN, m_aModel, */
+    /*                                     m_nNextLongUpdate, */
+    /*                                     m_nNextMidUpdate, */
+    /*                                     m_nNextShortUpdate, */
+    /*                                     m_aModelIndexLong, */
+    /*                                     m_aModelIndexMid, */
+    /*                                     m_aModelIndexShort, */
+    /*                                     m_nLongCounter, */
+    /*                                     m_nMidCounter, */
+    /*                                     m_nShortCounter, */
+    /*                                     m_nLongUpdate, */
+    /*                                     m_nMidUpdate, */
+    /*                                     m_nShortUpdate, */
+    /*                                     include */
+    /*                                   ); */
+    /*         switch ( result ) */
+    /*         { */
+    /*         case 0: */
+    /*             //foreground */
+    /*             *_dst.ptr( ( int )y, ( int )x ) = 255; */
+    /*             break; */
+    /*         case 1: */
+    /*             //background */
+    /*             *_dst.ptr( ( int )y, ( int )x ) = 0; */
+    /*             break; */
+    /*         case 2: */
+    /*             //shadow */
+    /*             *_dst.ptr( ( int )y, ( int )x ) = nShadowDetection; */
+    /*             break; */
+    /*         } */
+    /*         i++; */
+    /*     } */
+    /* } */
 }
 
 
