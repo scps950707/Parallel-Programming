@@ -182,8 +182,11 @@ _cvCheckPixelBackgroundNP(
 
 static inline void
 icvUpdatePixelBackgroundNP(
-    const cv::Mat &src,
-    cv::Mat &dst,
+    int channels,
+    int nrows,
+    int ncols,
+    uchar *srcData,
+    uchar *dst,
     uchar *Model,
     uchar *NextLongUpdate,
     uchar *NextMidUpdate,
@@ -203,8 +206,6 @@ icvUpdatePixelBackgroundNP(
     uchar ShadowValue
 )
 {
-    int channels = CV_MAT_CN( src.type() );
-
     //recalculate update rates - in case alpha is changed
     // calculate update parameters (using alpha)
     int Kshort, Kmid, Klong;
@@ -219,11 +220,13 @@ icvUpdatePixelBackgroundNP(
     int LongUpdate = ( Klong / nSample ) + 1;
 
     //go through the image
-    for ( long y = 0; y < src.rows; y++ )
+    for ( long y = 0; y < nrows; y++ )
     {
-        for ( long x = 0; x < src.cols; x++ )
+        for ( long x = 0; x < ncols; x++ )
         {
-            const uchar *data = src.ptr( ( int )y, ( int )x );
+            int posPixel = ncols * y + x;
+            /* start addr of current pixel */
+            const uchar *data = srcData + posPixel * channels;
 
             //update model+ background subtract
             bool include = 0;
@@ -231,7 +234,7 @@ icvUpdatePixelBackgroundNP(
                              data,
                              channels,
                              nSample,
-                             Model + ( y * src.rows + x ) * ( channels + 1 ) * nSample * 3,
+                             Model + posPixel * ( channels + 1 ) * nSample * 3,
                              // pass Model's start address of pixel
                              Tb,
                              kNN,
@@ -241,7 +244,7 @@ icvUpdatePixelBackgroundNP(
                          );
 
             _cvUpdatePixelBackgroundNP(
-                y * src.rows + x,
+                y * ncols + x,
                 data,
                 channels,
                 nSample,
@@ -264,15 +267,15 @@ icvUpdatePixelBackgroundNP(
             {
             case 0:
                 //foreground
-                *dst.ptr( ( int )y, ( int )x ) = 255;
+                dst[posPixel] = 255;
                 break;
             case 1:
                 //background
-                *dst.ptr( ( int )y, ( int )x ) = 0;
+                dst[posPixel] = 0;
                 break;
             case 2:
                 //shadow
-                *dst.ptr( ( int )y, ( int )x ) = ShadowValue;
+                dst[posPixel] = ShadowValue;
                 break;
             }
         }
@@ -312,8 +315,11 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &fgmask, double learningRate )
     CV_Assert( learningRate >= 0 );
 
     icvUpdatePixelBackgroundNP(
-        image,
-        fgmask,
+        image.channels(),
+        image.rows,
+        image.cols,
+        image.ptr(),
+        fgmask.ptr(),
         bgmodel,
         nNextLongUpdate,
         nNextMidUpdate,
