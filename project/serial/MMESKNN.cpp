@@ -42,12 +42,12 @@ _cvUpdatePixelBackgroundNP(
         memcpy( &Model[offsetLong], &Model[offsetMid], ndata * sizeof( uchar ) );
         // increase the index
         ModelIndexLong[pixel] = ( ModelIndexLong[pixel] >= ( nSample - 1 ) ) ? 0 : ( ModelIndexLong[pixel] + 1 );
-    };
+    }
     if ( LongCounter == ( LongUpdate - 1 ) )
     {
         //NextLongUpdate[pixel] = (uchar)(((LongUpdate)*(rand()-1))/RAND_MAX);//0,...LongUpdate-1;
         NextLongUpdate[pixel] = ( uchar )( rand() % LongUpdate ); //0,...LongUpdate-1;
-    };
+    }
 
     // Mid update?
     if ( NextMidUpdate[pixel] == MidCounter )
@@ -56,11 +56,11 @@ _cvUpdatePixelBackgroundNP(
         memcpy( &Model[offsetMid], &Model[offsetShort], ndata * sizeof( uchar ) );
         // increase the index
         ModelIndexMid[pixel] = ( ModelIndexMid[pixel] >= ( nSample - 1 ) ) ? 0 : ( ModelIndexMid[pixel] + 1 );
-    };
+    }
     if ( MidCounter == ( MidUpdate - 1 ) )
     {
         NextMidUpdate[pixel] = ( uchar )( rand() % MidUpdate );
-    };
+    }
 
     // Short update?
     if ( NextShortUpdate[pixel] == ShortCounter )
@@ -71,11 +71,11 @@ _cvUpdatePixelBackgroundNP(
         Model[offsetShort + channels] = ( uchar )include;
         // increase the index
         ModelIndexShort[pixel] = ( ModelIndexShort[pixel] >= ( nSample - 1 ) ) ? 0 : ( ModelIndexShort[pixel] + 1 );
-    };
+    }
     if ( ShortCounter == ( ShortUpdate - 1 ) )
     {
         NextShortUpdate[pixel] = ( uchar )( rand() % ShortUpdate );
-    };
+    }
 }
 
 static inline int
@@ -118,10 +118,10 @@ _cvCheckPixelBackgroundNP(
                 {
                     include = true; //include
                     return 1;//background ->exit
-                };
+                }
             }
-        };
-    };
+        }
+    }
 
     //include?
     if ( Pbf >= kNN ) //Tbf)
@@ -172,10 +172,10 @@ _cvCheckPixelBackgroundNP(
                         {
                             return 2;
                         }
-                    };
-                };
-            };
-        };
+                    }
+                }
+            }
+        }
     }
     return 0;
 }
