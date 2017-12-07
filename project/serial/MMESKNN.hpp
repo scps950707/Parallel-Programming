@@ -41,7 +41,16 @@ public:
         nShortCounter = 0;
     }
     //! the destructor
-    ~MMESKNN() {}
+    ~MMESKNN()
+    {
+        delete[] bgmodel;
+        delete[] aModelIndexShort;
+        delete[] aModelIndexMid;
+        delete[] aModelIndexLong;
+        delete[] nNextShortUpdate;
+        delete[] nNextMidUpdate;
+        delete[] nNextLongUpdate;
+    }
     //! the update operator
     void apply( cv::Mat &image, cv::Mat &fgmask, double learningRate = -1 );
 
@@ -59,29 +68,29 @@ public:
         int size = frameSize.height * frameSize.width;
         // for each sample of 3 speed pixel models each pixel bg model we store ...
         // values + flag (nchannels+1 values)
-        bgmodel.create( 1, ( nSample * 3 ) * ( nchannels + 1 )* size, CV_8U );
-        bgmodel = cv::Scalar::all( 0 );
+        bgmodel = new uchar[( nSample * 3 ) * ( nchannels + 1 )* size];
+        std::fill( bgmodel, bgmodel + ( nSample * 3 ) * ( nchannels + 1 )* size, 0 );
 
         //index through the three circular lists
-        aModelIndexShort.create( 1, size, CV_8U );
-        aModelIndexMid.create( 1, size, CV_8U );
-        aModelIndexLong.create( 1, size, CV_8U );
+        aModelIndexShort = new uchar[size];
+        aModelIndexMid = new uchar[size];
+        aModelIndexLong = new uchar[size];
         //when to update next
-        nNextShortUpdate.create( 1, size, CV_8U );
-        nNextMidUpdate.create( 1, size, CV_8U );
-        nNextLongUpdate.create( 1, size, CV_8U );
+        nNextShortUpdate = new uchar[size];
+        nNextMidUpdate = new uchar[size];
+        nNextLongUpdate = new uchar[size];
 
         //Reset counters
         nShortCounter = 0;
         nMidCounter = 0;
         nLongCounter = 0;
 
-        aModelIndexShort = cv::Scalar::all( 0 ); //random? //((m_nN)*rand())/(RAND_MAX+1);//0...m_nN-1
-        aModelIndexMid = cv::Scalar::all( 0 );
-        aModelIndexLong = cv::Scalar::all( 0 );
-        nNextShortUpdate = cv::Scalar::all( 0 );
-        nNextMidUpdate = cv::Scalar::all( 0 );
-        nNextLongUpdate = cv::Scalar::all( 0 );
+        std::fill( aModelIndexShort, aModelIndexShort + size, 0 );
+        std::fill( aModelIndexMid, aModelIndexMid + size, 0 );
+        std::fill( aModelIndexLong, aModelIndexLong + size, 0 );
+        std::fill( nNextShortUpdate, nNextShortUpdate + size, 0 );
+        std::fill( nNextMidUpdate, nNextMidUpdate + size, 0 );
+        std::fill( nNextLongUpdate, nNextLongUpdate + size, 0 );
     }
 
     int getHistory() const
@@ -182,13 +191,13 @@ protected:
     int nLongCounter;//circular counter
     int nMidCounter;
     int nShortCounter;
-    cv::Mat bgmodel; // model data pixel values
-    cv::Mat aModelIndexShort;// index into the models
-    cv::Mat aModelIndexMid;
-    cv::Mat aModelIndexLong;
-    cv::Mat nNextShortUpdate;//random update points per model
-    cv::Mat nNextMidUpdate;
-    cv::Mat nNextLongUpdate;
+    uchar *bgmodel; // model data pixel values
+    uchar *aModelIndexShort;// index into the models
+    uchar *aModelIndexMid;
+    uchar *aModelIndexLong;
+    uchar *nNextShortUpdate;//random update points per model
+    uchar *nNextMidUpdate;
+    uchar *nNextLongUpdate;
 };
 
 #endif

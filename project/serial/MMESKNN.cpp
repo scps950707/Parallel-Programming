@@ -26,7 +26,7 @@ _cvUpdatePixelBackgroundNP(
     int LongUpdate,
     int MidUpdate,
     int ShortUpdate,
-    uchar include
+    bool include
 )
 {
     // hold the offset
@@ -39,7 +39,7 @@ _cvUpdatePixelBackgroundNP(
     if ( NextLongUpdate[pixel] == LongCounter )
     {
         // add the oldest pixel from Mid to the list of values (for each color)
-        memcpy( &Model[offsetLong], &Model[offsetMid], ndata * sizeof( unsigned char ) );
+        memcpy( &Model[offsetLong], &Model[offsetMid], ndata * sizeof( uchar ) );
         // increase the index
         ModelIndexLong[pixel] = ( ModelIndexLong[pixel] >= ( nSample - 1 ) ) ? 0 : ( ModelIndexLong[pixel] + 1 );
     };
@@ -53,7 +53,7 @@ _cvUpdatePixelBackgroundNP(
     if ( NextMidUpdate[pixel] == MidCounter )
     {
         // add this pixel to the list of values (for each color)
-        memcpy( &Model[offsetMid], &Model[offsetShort], ndata * sizeof( unsigned char ) );
+        memcpy( &Model[offsetMid], &Model[offsetShort], ndata * sizeof( uchar ) );
         // increase the index
         ModelIndexMid[pixel] = ( ModelIndexMid[pixel] >= ( nSample - 1 ) ) ? 0 : ( ModelIndexMid[pixel] + 1 );
     };
@@ -66,9 +66,9 @@ _cvUpdatePixelBackgroundNP(
     if ( NextShortUpdate[pixel] == ShortCounter )
     {
         // add this pixel to the list of values (for each color)
-        memcpy( &Model[offsetShort], data, ndata * sizeof( unsigned char ) );
+        memcpy( &Model[offsetShort], data, ndata * sizeof( uchar ) );
         //set the include flag
-        Model[offsetShort + channels] = include;
+        Model[offsetShort + channels] = ( uchar )include;
         // increase the index
         ModelIndexShort[pixel] = ( ModelIndexShort[pixel] >= ( nSample - 1 ) ) ? 0 : ( ModelIndexShort[pixel] + 1 );
     };
@@ -190,13 +190,13 @@ static inline void
 icvUpdatePixelBackgroundNP(
     const cv::Mat &src,
     cv::Mat &dst,
-    cv::Mat &bgmodel,
-    cv::Mat &_nNextLongUpdate,
-    cv::Mat &_nNextMidUpdate,
-    cv::Mat &_nNextShortUpdate,
-    cv::Mat &_aModelIndexLong,
-    cv::Mat &_aModelIndexMid,
-    cv::Mat &_aModelIndexShort,
+    uchar *Model,
+    uchar *NextLongUpdate,
+    uchar *NextMidUpdate,
+    uchar *NextShortUpdate,
+    uchar *ModelIndexLong,
+    uchar *ModelIndexMid,
+    uchar *ModelIndexShort,
     int &_nLongCounter,
     int &_nMidCounter,
     int &_nShortCounter,
@@ -210,15 +210,6 @@ icvUpdatePixelBackgroundNP(
 )
 {
     int channels = CV_MAT_CN( src.type() );
-
-    //model
-    uchar *Model = bgmodel.ptr( 0 );
-    uchar *NextLongUpdate = _nNextLongUpdate.ptr( 0 );
-    uchar *NextMidUpdate = _nNextMidUpdate.ptr( 0 );
-    uchar *NextShortUpdate = _nNextShortUpdate.ptr( 0 );
-    uchar *ModelIndexLong = _aModelIndexLong.ptr( 0 );
-    uchar *ModelIndexMid = _aModelIndexMid.ptr( 0 );
-    uchar *ModelIndexShort = _aModelIndexShort.ptr( 0 );
 
     //recalculate update rates - in case alpha is changed
     // calculate update parameters (using alpha)
@@ -281,7 +272,8 @@ icvUpdatePixelBackgroundNP(
                 i,
                 data,
                 channels,
-                nSample, Model,
+                nSample,
+                Model,
                 NextLongUpdate,
                 NextMidUpdate,
                 NextShortUpdate,
