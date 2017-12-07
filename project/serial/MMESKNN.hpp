@@ -39,6 +39,13 @@ public:
         nLongCounter = 0;
         nMidCounter = 0;
         nShortCounter = 0;
+        bgmodel = nullptr;
+        aModelIndexShort = nullptr;
+        aModelIndexMid = nullptr;
+        aModelIndexLong = nullptr;
+        nNextShortUpdate = nullptr;
+        nNextMidUpdate = nullptr;
+        nNextLongUpdate = nullptr;
     }
     //! the destructor
     ~MMESKNN()
