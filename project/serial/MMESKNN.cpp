@@ -191,9 +191,9 @@ icvUpdatePixelBackgroundNP(
     uchar *ModelIndexLong,
     uchar *ModelIndexMid,
     uchar *ModelIndexShort,
-    int &_nLongCounter,
-    int &_nMidCounter,
-    int &_nShortCounter,
+    int &LongCounter,
+    int &MidCounter,
+    int &ShortCounter,
     int nSample,
     float AlphaT,
     float Tb,
@@ -217,27 +217,6 @@ icvUpdatePixelBackgroundNP(
     int	ShortUpdate = ( Kshort / nSample ) + 1;
     int MidUpdate = ( Kmid / nSample ) + 1;
     int LongUpdate = ( Klong / nSample ) + 1;
-
-    //update counters for the refresh rate
-    int LongCounter = _nLongCounter;
-    int MidCounter = _nMidCounter;
-    int ShortCounter = _nShortCounter;
-
-    _nShortCounter++;//0,1,...,ShortUpdate-1
-    _nMidCounter++;
-    _nLongCounter++;
-    if ( _nShortCounter >= ShortUpdate )
-    {
-        _nShortCounter = 0;
-    }
-    if ( _nMidCounter >= MidUpdate )
-    {
-        _nMidCounter = 0;
-    }
-    if ( _nLongCounter >= LongUpdate )
-    {
-        _nLongCounter = 0;
-    }
 
     //go through the image
     for ( long y = 0; y < src.rows; y++ )
@@ -297,6 +276,21 @@ icvUpdatePixelBackgroundNP(
                 break;
             }
         }
+    }
+    //update counters for the refresh rate
+
+    //0,1,...,ShortUpdate-1
+    if ( ++ShortCounter >= ShortUpdate )
+    {
+        ShortCounter = 0;
+    }
+    if ( ++MidCounter >= MidUpdate )
+    {
+        MidCounter = 0;
+    }
+    if ( ++LongCounter >= LongUpdate )
+    {
+        LongCounter = 0;
     }
 }
 
