@@ -80,7 +80,6 @@ _cvUpdatePixelBackgroundNP(
 
 static inline int
 _cvCheckPixelBackgroundNP(
-    long pixel,
     const uchar *data,
     int channels,
     int nSample,
@@ -98,24 +97,21 @@ _cvCheckPixelBackgroundNP(
     include = false; //do we include this pixel into background model?
 
     int ndata = channels + 1;
-    long posPixel = pixel * ndata * nSample * 3;
+    /* long posPixel = pixel * ndata * nSample * 3; */
     // now increase the probability for each pixel
     for ( int n = 0; n < nSample * 3; n++ )
     {
-        uchar *mean_m = &Model[posPixel + n * ndata];
-
         //calculate difference and distance
-        int d0 = mean_m[0] - data[0];
-        int d1 = mean_m[1] - data[1];
-        int d2 = mean_m[2] - data[2];
+        int d0 = Model[n * ndata] - data[0];
+        int d1 = Model[n * ndata + 1] - data[1];
+        int d2 = Model[n * ndata + 2] - data[2];
         int dist2 = d0 * d0 + d1 * d1 + d2 * d2;
 
         if ( dist2 < Tb )
         {
             Pbf++;//all
             //background only
-            //if(Model[subPosPixel + channels])//indicator
-            if ( mean_m[channels] ) //indicator
+            if ( Model[n * ndata + 3] ) //indicator
             {
                 Pb++;
                 if ( Pb >= kNN ) //Tb
@@ -139,7 +135,7 @@ _cvCheckPixelBackgroundNP(
         int Ps = 0; // the total probability that this pixel is background shadow
         for ( int n = 0; n < nSample * 3; n++ )
         {
-            uchar *mean_m = &Model[posPixel + n * ndata];
+            uchar *mean_m = &Model[n * ndata];
 
             if ( mean_m[channels] ) //check only background
             {
@@ -244,7 +240,6 @@ icvUpdatePixelBackgroundNP(
     }
 
     //go through the image
-    long i = 0;
     for ( long y = 0; y < src.rows; y++ )
     {
         for ( long x = 0; x < src.cols; x++ )
@@ -254,11 +249,11 @@ icvUpdatePixelBackgroundNP(
             //update model+ background subtract
             bool include = 0;
             int result = _cvCheckPixelBackgroundNP(
-                             i,
                              data,
                              channels,
                              nSample,
-                             Model,
+                             Model + ( y * src.rows + x ) * ( channels + 1 ) * nSample * 3,
+                             // pass Model's start address of pixel
                              Tb,
                              kNN,
                              Tau,
@@ -267,7 +262,7 @@ icvUpdatePixelBackgroundNP(
                          );
 
             _cvUpdatePixelBackgroundNP(
-                i,
+                y * src.rows + x,
                 data,
                 channels,
                 nSample,
@@ -301,7 +296,6 @@ icvUpdatePixelBackgroundNP(
                 *dst.ptr( ( int )y, ( int )x ) = ShadowValue;
                 break;
             }
-            i++;
         }
     }
 }
