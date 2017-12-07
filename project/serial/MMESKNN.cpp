@@ -95,7 +95,6 @@ _cvCheckPixelBackgroundNP(
     int Pbf = 0; // the total probability that this pixel is background
     int Pb = 0; //background model probability
 
-    //uchar& include=data[channels];
     include = false; //do we include this pixel into background model?
 
     int ndata = channels + 1;
@@ -106,10 +105,10 @@ _cvCheckPixelBackgroundNP(
         uchar *mean_m = &Model[posPixel + n * ndata];
 
         //calculate difference and distance
-        float d0 = ( float )mean_m[0] - data[0];
-        float d1 = ( float )mean_m[1] - data[1];
-        float d2 = ( float )mean_m[2] - data[2];
-        float dist2 = d0 * d0 + d1 * d1 + d2 * d2;
+        int d0 = mean_m[0] - data[0];
+        int d1 = mean_m[1] - data[1];
+        int d2 = mean_m[2] - data[2];
+        int dist2 = d0 * d0 + d1 * d1 + d2 * d2;
 
         if ( dist2 < Tb )
         {
@@ -140,7 +139,6 @@ _cvCheckPixelBackgroundNP(
         int Ps = 0; // the total probability that this pixel is background shadow
         for ( int n = 0; n < nSample * 3; n++ )
         {
-            //long subPosPixel = posPixel + n*ndata;
             uchar *mean_m = &Model[posPixel + n * ndata];
 
             if ( mean_m[channels] ) //check only background
@@ -149,8 +147,8 @@ _cvCheckPixelBackgroundNP(
                 float denominator = 0.0f;
                 for ( int c = 0; c < channels; c++ )
                 {
-                    numerator   += ( float )data[c] * mean_m[c];
-                    denominator += ( float )mean_m[c] * mean_m[c];
+                    numerator   += data[c] * mean_m[c];
+                    denominator += mean_m[c] * mean_m[c];
                 }
 
                 // no division by zero allowed
@@ -312,8 +310,6 @@ icvUpdatePixelBackgroundNP(
 
 void MMESKNN::apply( cv::Mat &image, cv::Mat &fgmask, double learningRate )
 {
-    /* CV_INSTRUMENT_REGION() */
-
     bool needToInitialize = nframes == 0 || learningRate >= 1 || image.size() != frameSize || image.type() != frameType;
 
     if ( needToInitialize )
