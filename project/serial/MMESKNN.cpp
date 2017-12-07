@@ -34,6 +34,7 @@ _cvUpdatePixelBackgroundNP(
     long offsetLong =  ndata * ( pixel * nSample * 3 + ModelIndexLong[pixel] + nSample * 2 );
     long offsetMid =   ndata * ( pixel * nSample * 3 + ModelIndexMid[pixel]  + nSample * 1 );
     long offsetShort = ndata * ( pixel * nSample * 3 + ModelIndexShort[pixel] );
+    uint seed = time( NULL );
 
     // Long update?
     if ( NextLongUpdate[pixel] == LongCounter )
@@ -46,7 +47,7 @@ _cvUpdatePixelBackgroundNP(
     if ( LongCounter == ( LongUpdate - 1 ) )
     {
         //NextLongUpdate[pixel] = (uchar)(((LongUpdate)*(rand()-1))/RAND_MAX);//0,...LongUpdate-1;
-        NextLongUpdate[pixel] = ( uchar )( rand() % LongUpdate ); //0,...LongUpdate-1;
+        NextLongUpdate[pixel] = ( uchar )( rand_r( &seed ) % LongUpdate ); //0,...LongUpdate-1;
     }
 
     // Mid update?
@@ -59,7 +60,7 @@ _cvUpdatePixelBackgroundNP(
     }
     if ( MidCounter == ( MidUpdate - 1 ) )
     {
-        NextMidUpdate[pixel] = ( uchar )( rand() % MidUpdate );
+        NextMidUpdate[pixel] = ( uchar )( rand_r( &seed ) % MidUpdate );
     }
 
     // Short update?
@@ -74,7 +75,7 @@ _cvUpdatePixelBackgroundNP(
     }
     if ( ShortCounter == ( ShortUpdate - 1 ) )
     {
-        NextShortUpdate[pixel] = ( uchar )( rand() % ShortUpdate );
+        NextShortUpdate[pixel] = ( uchar )( rand_r( &seed ) % ShortUpdate );
     }
 }
 
