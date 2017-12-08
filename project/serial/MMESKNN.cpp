@@ -9,8 +9,7 @@ using namespace std;
 //struct KNNInvoker....
 static inline void
 _cvUpdatePixelBackgroundNP(
-    long pixel,
-    const uchar *data,
+    const uchar *currPixel,
     int channels,
     int nSample,
     uchar *Model,
@@ -30,58 +29,65 @@ _cvUpdatePixelBackgroundNP(
 )
 {
     // hold the offset
-    int ndata = 1 + channels;
-    long offsetLong =  ndata * ( pixel * nSample * 3 + ModelIndexLong[pixel] + nSample * 2 );
-    long offsetMid =   ndata * ( pixel * nSample * 3 + ModelIndexMid[pixel]  + nSample * 1 );
-    long offsetShort = ndata * ( pixel * nSample * 3 + ModelIndexShort[pixel] );
+    int ndata        = 1 + channels;
+    long offsetLong  = ndata * ( *ModelIndexLong + nSample * 2 );
+    long offsetMid   = ndata * ( *ModelIndexMid  + nSample * 1 );
+    long offsetShort = ndata * ( *ModelIndexShort );
     uint seed = time( NULL );
 
     // Long update?
-    if ( NextLongUpdate[pixel] == LongCounter )
+    if ( *NextLongUpdate == LongCounter )
     {
         // add the oldest pixel from Mid to the list of values (for each color)
-        memcpy( &Model[offsetLong], &Model[offsetMid], ndata * sizeof( uchar ) );
+        Model[offsetLong]     = Model[offsetMid];
+        Model[offsetLong + 1] = Model[offsetMid + 1];
+        Model[offsetLong + 2] = Model[offsetMid + 2];
+        Model[offsetLong + 3] = Model[offsetMid + 3];
         // increase the index
-        ModelIndexLong[pixel] = ( ModelIndexLong[pixel] >= ( nSample - 1 ) ) ? 0 : ( ModelIndexLong[pixel] + 1 );
+        *ModelIndexLong = ( *ModelIndexLong >= ( nSample - 1 ) ) ? 0 : ( *ModelIndexLong + 1 );
     }
     if ( LongCounter == ( LongUpdate - 1 ) )
     {
-        //NextLongUpdate[pixel] = (uchar)(((LongUpdate)*(rand()-1))/RAND_MAX);//0,...LongUpdate-1;
-        NextLongUpdate[pixel] = ( uchar )( rand_r( &seed ) % LongUpdate ); //0,...LongUpdate-1;
+        *NextLongUpdate = ( uchar )( rand_r( &seed ) % LongUpdate ); //0,...LongUpdate-1;
     }
 
     // Mid update?
-    if ( NextMidUpdate[pixel] == MidCounter )
+    if ( *NextMidUpdate == MidCounter )
     {
         // add this pixel to the list of values (for each color)
-        memcpy( &Model[offsetMid], &Model[offsetShort], ndata * sizeof( uchar ) );
+        Model[offsetMid]     = Model[offsetShort];
+        Model[offsetMid + 1] = Model[offsetShort + 1];
+        Model[offsetMid + 2] = Model[offsetShort + 2];
+        Model[offsetMid + 3] = Model[offsetShort + 3];
         // increase the index
-        ModelIndexMid[pixel] = ( ModelIndexMid[pixel] >= ( nSample - 1 ) ) ? 0 : ( ModelIndexMid[pixel] + 1 );
+        *ModelIndexMid = ( *ModelIndexMid >= ( nSample - 1 ) ) ? 0 : ( *ModelIndexMid + 1 );
     }
     if ( MidCounter == ( MidUpdate - 1 ) )
     {
-        NextMidUpdate[pixel] = ( uchar )( rand_r( &seed ) % MidUpdate );
+        *NextMidUpdate = ( uchar )( rand_r( &seed ) % MidUpdate );
     }
 
     // Short update?
-    if ( NextShortUpdate[pixel] == ShortCounter )
+    if ( *NextShortUpdate == ShortCounter )
     {
         // add this pixel to the list of values (for each color)
-        memcpy( &Model[offsetShort], data, ndata * sizeof( uchar ) );
+        Model[offsetShort]     = currPixel[0];
+        Model[offsetShort + 1] = currPixel[1];
+        Model[offsetShort + 2] = currPixel[2];
         //set the include flag
         Model[offsetShort + channels] = ( uchar )include;
         // increase the index
-        ModelIndexShort[pixel] = ( ModelIndexShort[pixel] >= ( nSample - 1 ) ) ? 0 : ( ModelIndexShort[pixel] + 1 );
+        *ModelIndexShort = ( *ModelIndexShort >= ( nSample - 1 ) ) ? 0 : ( *ModelIndexShort + 1 );
     }
     if ( ShortCounter == ( ShortUpdate - 1 ) )
     {
-        NextShortUpdate[pixel] = ( uchar )( rand_r( &seed ) % ShortUpdate );
+        *NextShortUpdate = ( uchar )( rand_r( &seed ) % ShortUpdate );
     }
 }
 
 static inline int
 _cvCheckPixelBackgroundNP(
-    const uchar *data,
+    const uchar *currPixel,
     int channels,
     int nSample,
     uchar *Model,
@@ -103,9 +109,9 @@ _cvCheckPixelBackgroundNP(
     for ( int n = 0; n < nSample * 3; n++ )
     {
         //calculate difference and distance
-        int d0 = Model[n * ndata] - data[0];
-        int d1 = Model[n * ndata + 1] - data[1];
-        int d2 = Model[n * ndata + 2] - data[2];
+        int d0 = Model[n * ndata] - currPixel[0];
+        int d1 = Model[n * ndata + 1] - currPixel[1];
+        int d2 = Model[n * ndata + 2] - currPixel[2];
         int dist2 = d0 * d0 + d1 * d1 + d2 * d2;
 
         if ( dist2 < Tb )
@@ -144,7 +150,7 @@ _cvCheckPixelBackgroundNP(
                 float denominator = 0.0f;
                 for ( int c = 0; c < channels; c++ )
                 {
-                    numerator   += data[c] * mean_m[c];
+                    numerator   += currPixel[c] * mean_m[c];
                     denominator += mean_m[c] * mean_m[c];
                 }
 
@@ -162,7 +168,7 @@ _cvCheckPixelBackgroundNP(
 
                     for ( int c = 0; c < channels; c++ )
                     {
-                        float dD = a * mean_m[c] - data[c];
+                        float dD = a * mean_m[c] - currPixel[c];
                         dist2a += dD * dD;
                     }
 
@@ -212,13 +218,13 @@ icvUpdatePixelBackgroundNP(
     int Kshort, Kmid, Klong;
     //approximate exponential learning curve
     Kshort = ( int )( log( 0.7 ) / log( 1 - AlphaT ) ) + 1; //Kshort
-    Kmid = ( int )( log( 0.4 ) / log( 1 - AlphaT ) ) - Kshort + 1; //Kmid
-    Klong = ( int )( log( 0.1 ) / log( 1 - AlphaT ) ) - Kshort - Kmid + 1; //Klong
+    Kmid   = ( int )( log( 0.4 ) / log( 1 - AlphaT ) ) - Kshort + 1; //Kmid
+    Klong  = ( int )( log( 0.1 ) / log( 1 - AlphaT ) ) - Kshort - Kmid + 1; //Klong
 
     //refresh rates
     int	ShortUpdate = ( Kshort / nSample ) + 1;
-    int MidUpdate = ( Kmid / nSample ) + 1;
-    int LongUpdate = ( Klong / nSample ) + 1;
+    int MidUpdate   = ( Kmid   / nSample ) + 1;
+    int LongUpdate  = ( Klong  / nSample ) + 1;
 
     //go through the image
     for ( long y = 0; y < nrows; y++ )
@@ -227,12 +233,12 @@ icvUpdatePixelBackgroundNP(
         {
             int posPixel = ncols * y + x;
             /* start addr of current pixel */
-            const uchar *data = srcData + posPixel * channels;
+            const uchar *currPixel = srcData + posPixel * channels;
 
             //update model+ background subtract
             bool include = 0;
             int result = _cvCheckPixelBackgroundNP(
-                             data,
+                             currPixel,
                              channels,
                              nSample,
                              Model + posPixel * ( channels + 1 ) * nSample * 3,
@@ -245,17 +251,16 @@ icvUpdatePixelBackgroundNP(
                          );
 
             _cvUpdatePixelBackgroundNP(
-                y * ncols + x,
-                data,
+                currPixel,
                 channels,
                 nSample,
-                Model,
-                NextLongUpdate,
-                NextMidUpdate,
-                NextShortUpdate,
-                ModelIndexLong,
-                ModelIndexMid,
-                ModelIndexShort,
+                Model + posPixel * ( channels + 1 ) * nSample * 3,
+                NextLongUpdate + posPixel,
+                NextMidUpdate + posPixel,
+                NextShortUpdate + posPixel,
+                ModelIndexLong + posPixel,
+                ModelIndexMid + posPixel,
+                ModelIndexShort + posPixel,
                 LongCounter,
                 MidCounter,
                 ShortCounter,
