@@ -230,6 +230,7 @@ icvUpdatePixelBackgroundNP(
     int LongUpdate  = ( Klong  / nSample ) + 1;
 
     //go through the image
+    #pragma omp parallel for schedule(dynamic,20)
     for ( long y = 0; y < nrows; y++ )
     {
         for ( long x = 0; x < ncols; x++ )
