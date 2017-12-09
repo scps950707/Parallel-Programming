@@ -17,6 +17,10 @@ int main( int argc, char *argv[] )
     /* Ptr<BackgroundSubtractor> BG = createBackgroundSubtractorKNN(); */
 
     VideoCapture input( argv[1] );
+    if ( argc == 3 )
+    {
+        input.set( CV_CAP_PROP_POS_FRAMES, atoi( argv[2] ) * 30 );
+    }
     while ( true )
     {
         Mat cameraFrame;
