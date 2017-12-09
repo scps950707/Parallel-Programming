@@ -40,6 +40,7 @@ public:
         nMidCounter = 0;
         nShortCounter = 0;
         bgmodel = nullptr;
+        flag = nullptr;
         aModelIndexShort = nullptr;
         aModelIndexMid = nullptr;
         aModelIndexLong = nullptr;
@@ -51,6 +52,7 @@ public:
     ~MMESKNN()
     {
         delete[] bgmodel;
+        delete[] flag;
         delete[] aModelIndexShort;
         delete[] aModelIndexMid;
         delete[] aModelIndexLong;
@@ -72,32 +74,33 @@ public:
         CV_Assert( nchannels <= CV_CN_MAX );
 
         // Reserve memory for the model
-        int size = frameSize.height * frameSize.width;
+        int totalPixels = frameSize.height * frameSize.width;
         // for each sample of 3 speed pixel models each pixel bg model we store ...
-        // values + flag (nchannels+1 values)
-        bgmodel = new uchar[( nSample * 3 ) * ( nchannels + 1 )* size];
-        std::fill( bgmodel, bgmodel + ( nSample * 3 ) * ( nchannels + 1 )* size, 0 );
+        bgmodel = new uchar[nSample * 3 * nchannels * totalPixels];
+        std::fill( bgmodel, bgmodel + nSample * 3 * nchannels * totalPixels, 0 );
+        flag = new bool[nSample * 3 * totalPixels];
+        std::fill( flag, flag + nSample * 3 * totalPixels, false );
 
         //index through the three circular lists
-        aModelIndexShort = new uchar[size];
-        aModelIndexMid = new uchar[size];
-        aModelIndexLong = new uchar[size];
+        aModelIndexShort = new uchar[totalPixels];
+        aModelIndexMid = new uchar[totalPixels];
+        aModelIndexLong = new uchar[totalPixels];
         //when to update next
-        nNextShortUpdate = new uchar[size];
-        nNextMidUpdate = new uchar[size];
-        nNextLongUpdate = new uchar[size];
+        nNextShortUpdate = new uchar[totalPixels];
+        nNextMidUpdate = new uchar[totalPixels];
+        nNextLongUpdate = new uchar[totalPixels];
 
         //Reset counters
         nShortCounter = 0;
         nMidCounter = 0;
         nLongCounter = 0;
 
-        std::fill( aModelIndexShort, aModelIndexShort + size, 0 );
-        std::fill( aModelIndexMid, aModelIndexMid + size, 0 );
-        std::fill( aModelIndexLong, aModelIndexLong + size, 0 );
-        std::fill( nNextShortUpdate, nNextShortUpdate + size, 0 );
-        std::fill( nNextMidUpdate, nNextMidUpdate + size, 0 );
-        std::fill( nNextLongUpdate, nNextLongUpdate + size, 0 );
+        std::fill( aModelIndexShort, aModelIndexShort + totalPixels, 0 );
+        std::fill( aModelIndexMid, aModelIndexMid + totalPixels, 0 );
+        std::fill( aModelIndexLong, aModelIndexLong + totalPixels, 0 );
+        std::fill( nNextShortUpdate, nNextShortUpdate + totalPixels, 0 );
+        std::fill( nNextMidUpdate, nNextMidUpdate + totalPixels, 0 );
+        std::fill( nNextLongUpdate, nNextLongUpdate + totalPixels, 0 );
     }
 
     int getHistory() const
@@ -199,6 +202,7 @@ protected:
     int nMidCounter;
     int nShortCounter;
     uchar *bgmodel; // model data pixel values
+    bool *flag; // pixel is included in current model
     uchar *aModelIndexShort;// index into the models
     uchar *aModelIndexMid;
     uchar *aModelIndexLong;

@@ -12,6 +12,7 @@ _cvUpdatePixelBackgroundNP(
     const uchar *currPixel,
     int channels,
     int nSample,
+    bool *flag,
     uchar *Model,
     uchar *NextLongUpdate,
     uchar *NextMidUpdate,
@@ -29,10 +30,12 @@ _cvUpdatePixelBackgroundNP(
 )
 {
     // hold the offset
-    int ndata        = 1 + channels;
-    long offsetLong  = ndata * ( *ModelIndexLong + nSample * 2 );
-    long offsetMid   = ndata * ( *ModelIndexMid  + nSample * 1 );
-    long offsetShort = ndata * ( *ModelIndexShort );
+    long flagoffsetShort = *ModelIndexShort;
+    long flagoffsetMid   = *ModelIndexMid  + nSample * 1;
+    long flagoffsetLong  = *ModelIndexLong + nSample * 2;
+    long offsetShort = channels * ( *ModelIndexShort );
+    long offsetMid   = channels * ( *ModelIndexMid  + nSample * 1 );
+    long offsetLong  = channels * ( *ModelIndexLong + nSample * 2 );
     uint seed = time( NULL );
 
     // Long update?
@@ -42,7 +45,7 @@ _cvUpdatePixelBackgroundNP(
         Model[offsetLong]     = Model[offsetMid];
         Model[offsetLong + 1] = Model[offsetMid + 1];
         Model[offsetLong + 2] = Model[offsetMid + 2];
-        Model[offsetLong + 3] = Model[offsetMid + 3];
+        flag[flagoffsetLong]  = flag[flagoffsetMid];
         // increase the index
         *ModelIndexLong = ( *ModelIndexLong >= ( nSample - 1 ) ) ? 0 : ( *ModelIndexLong + 1 );
     }
@@ -58,7 +61,7 @@ _cvUpdatePixelBackgroundNP(
         Model[offsetMid]     = Model[offsetShort];
         Model[offsetMid + 1] = Model[offsetShort + 1];
         Model[offsetMid + 2] = Model[offsetShort + 2];
-        Model[offsetMid + 3] = Model[offsetShort + 3];
+        flag[flagoffsetMid]  = flag[flagoffsetShort];
         // increase the index
         *ModelIndexMid = ( *ModelIndexMid >= ( nSample - 1 ) ) ? 0 : ( *ModelIndexMid + 1 );
     }
@@ -74,8 +77,7 @@ _cvUpdatePixelBackgroundNP(
         Model[offsetShort]     = currPixel[0];
         Model[offsetShort + 1] = currPixel[1];
         Model[offsetShort + 2] = currPixel[2];
-        //set the include flag
-        Model[offsetShort + channels] = ( uchar )include;
+        flag[flagoffsetShort]  = include;
         // increase the index
         *ModelIndexShort = ( *ModelIndexShort >= ( nSample - 1 ) ) ? 0 : ( *ModelIndexShort + 1 );
     }
@@ -90,40 +92,40 @@ _cvCheckPixelBackgroundNP(
     const uchar *currPixel,
     int channels,
     int nSample,
+    bool *flag,
     uchar *Model,
     float Tb,
     int kNN,
     float tau,
     bool ShadowDetection,
-    bool &include
+    bool *include
 )
 {
     int Pbf = 0; // the total probability that this pixel is background
     int Pb = 0; //background model probability
 
-    include = false; //do we include this pixel into background model?
+    *include = false; //do we include this pixel into background model?
 
-    int ndata = channels + 1;
     /* long posPixel = pixel * ndata * nSample * 3; */
     // now increase the probability for each pixel
     for ( int n = 0; n < nSample * 3; n++ )
     {
         //calculate difference and distance
-        int d0 = Model[n * ndata] - currPixel[0];
-        int d1 = Model[n * ndata + 1] - currPixel[1];
-        int d2 = Model[n * ndata + 2] - currPixel[2];
+        int d0 = Model[n * channels] - currPixel[0];
+        int d1 = Model[n * channels + 1] - currPixel[1];
+        int d2 = Model[n * channels + 2] - currPixel[2];
         int dist2 = d0 * d0 + d1 * d1 + d2 * d2;
 
         if ( dist2 < Tb )
         {
             Pbf++;//all
             //background only
-            if ( Model[n * ndata + 3] ) //indicator
+            if ( flag[n] ) //indicator
             {
                 Pb++;
                 if ( Pb >= kNN ) //Tb
                 {
-                    include = true; //include
+                    *include = true; //include
                     return 1;//background ->exit
                 }
             }
@@ -133,7 +135,7 @@ _cvCheckPixelBackgroundNP(
     //include?
     if ( Pbf >= kNN ) //Tbf)
     {
-        include = true;
+        *include = true;
     }
 
     // Detected as moving object, perform shadow detection
@@ -142,9 +144,9 @@ _cvCheckPixelBackgroundNP(
         int Ps = 0; // the total probability that this pixel is background shadow
         for ( int n = 0; n < nSample * 3; n++ )
         {
-            uchar *mean_m = &Model[n * ndata];
+            uchar *mean_m = Model + n * channels;
 
-            if ( mean_m[channels] ) //check only background
+            if ( flag[n] ) //check only background
             {
                 float numerator = 0.0f;
                 float denominator = 0.0f;
@@ -194,6 +196,7 @@ icvUpdatePixelBackgroundNP(
     int ncols,
     uchar *srcData,
     uchar *dst,
+    bool *flag,
     uchar *Model,
     uchar *NextLongUpdate,
     uchar *NextMidUpdate,
@@ -241,20 +244,22 @@ icvUpdatePixelBackgroundNP(
                              currPixel,
                              channels,
                              nSample,
-                             Model + posPixel * ( channels + 1 ) * nSample * 3,
+                             flag + posPixel * nSample * 3,
+                             Model + posPixel * channels * nSample * 3,
                              // pass Model's start address of pixel
                              Tb,
                              kNN,
                              Tau,
                              ShadowDetection,
-                             include
+                             &include
                          );
 
             _cvUpdatePixelBackgroundNP(
                 currPixel,
                 channels,
                 nSample,
-                Model + posPixel * ( channels + 1 ) * nSample * 3,
+                flag + posPixel * nSample * 3,
+                Model + posPixel * channels * nSample * 3,
                 NextLongUpdate + posPixel,
                 NextMidUpdate + posPixel,
                 NextShortUpdate + posPixel,
@@ -326,6 +331,7 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &fgmask, double learningRate )
         image.cols,
         image.ptr(),
         fgmask.ptr(),
+        flag,
         bgmodel,
         nNextLongUpdate,
         nNextMidUpdate,
