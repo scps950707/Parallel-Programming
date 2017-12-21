@@ -3,13 +3,13 @@ EXT  = .cpp
 OBJS = $(SRCS:$(EXT)=.o)
 EXEC = histogram
 CXX  = g++
-CXXFLAGS = -Wall -std=c++11
-LIBS = 
+CXXFLAGS = -Wall
+LIBS =
 
 all:$(EXEC)
 
 ifdef debug
-CXXFLAGS += -D__DEBUG__
+CXXFLAGS += -std=c++11 -D__DEBUG__
 endif
 
 $(EXEC):$(OBJS)

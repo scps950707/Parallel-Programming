@@ -3,14 +3,14 @@ EXT  = .cpp
 OBJS = $(SRCS:$(EXT)=.o)
 EXEC = histogram
 CXX  = g++
-CXXFLAGS = -std=c++11 -Wall
+CXXFLAGS = -Wall
 LIBS = -lOpenCL
 # LIBS = -L/usr/local/cuda-9.0/lib64/ -lOpenCL
 
 all:$(EXEC)
 
 ifdef debug
-CXXFLAGS += -D__DEBUG__
+CXXFLAGS += -std=c++11 -D__DEBUG__
 endif
 
 $(EXEC):$(OBJS)

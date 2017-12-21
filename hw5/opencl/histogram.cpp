@@ -2,7 +2,7 @@
  * Author:         scps950707
  * Email:          scps950707@gmail.com
  * Created:        2017-12-21 16:30
- * Last Modified:  2017-12-22 01:22
+ * Last Modified:  2017-12-22 01:46
  * Filename:       histogram.cpp
  */
 
@@ -11,7 +11,9 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#ifdef __DEBUG__
 #include <chrono>
+#endif
 #include <CL/cl.h>
 
 using namespace std;
