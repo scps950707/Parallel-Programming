@@ -2,7 +2,7 @@
  * Author:         scps950707
  * Email:          scps950707@gmail.com
  * Created:        2017-12-21 16:30
- * Last Modified:  2017-12-22 01:46
+ * Last Modified:  2017-12-22 15:19
  * Filename:       histogram.cpp
  */
 
@@ -240,8 +240,8 @@ int main( void )
     context = clCreateContext( 0, 1, &deviceId, NULL, NULL, &ret );
     HANDLE_ERROR( ret );
 
-    /* cmds = clCreateCommandQueueWithProperties( context, deviceId, NULL, &ret ); */
-    cmds = clCreateCommandQueue( context, deviceId, 0, &ret );
+    cmds = clCreateCommandQueueWithProperties( context, deviceId, NULL, &ret );
+    /* cmds = clCreateCommandQueue( context, deviceId, 0, &ret ); */
     HANDLE_ERROR( ret );
 
     program = clCreateProgramWithSource( context, 1, ( const char ** ) & ( codeCStr ), &codeLen, &ret );
