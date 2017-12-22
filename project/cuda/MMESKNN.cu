@@ -1,6 +1,7 @@
 #include <opencv2/opencv.hpp>
 #include <stdlib.h>
 #include <iostream>
+#include <chrono>
 #include "MMESKNN.hpp"
 using namespace std;
 
@@ -398,6 +399,7 @@ int main( int argc, char *argv[] )
     Mat frame;
     Mat output;
 
+    auto start = std::chrono::system_clock::now();
     MMESKNN *BG = new MMESKNN();
     /* Ptr<BackgroundSubtractor> BG = createBackgroundSubtractorMOG2(); */
     /* Ptr<BackgroundSubtractor> BG = createBackgroundSubtractorKNN(); */
@@ -407,22 +409,26 @@ int main( int argc, char *argv[] )
     {
         input.set( CV_CAP_PROP_POS_FRAMES, atoi( argv[2] ) * 30 );
     }
+    std::chrono::duration<double> BGtime = std::chrono::duration<double>::zero();
     while ( true )
     {
         if ( !( input.read( frame ) ) ) //get one frame form video
         {
             break;
         }
-        //Mat test;
-        //test.create(frame.size(),CV_8U);
+        auto t1 = std::chrono::system_clock::now();
         BG->apply( frame, output );
+        auto t2 = std::chrono::system_clock::now();
+        BGtime += t2 - t1;
         imshow( "Origin", frame );
         imshow( "KNN",    output );
-        //imshow( "SADASD", test);
         if ( waitKey( 30 ) >= 0 )
         {
             break;
         }
     }
+    std::chrono::duration<double> totalTime = std::chrono::system_clock::now() - start;
+    cout << "BG time: " << BGtime.count() << "s\n";
+    cout << "total time: " << totalTime.count() << "s\n";
     delete BG;
 }
