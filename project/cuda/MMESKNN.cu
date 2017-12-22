@@ -203,6 +203,8 @@ __device__ int _cvCheckPixelBackgroundNP(
 }
 
 __global__ void icvUpdatePixelBackgroundNP(
+    int cols,
+    int rows,
     int channels,
     int totalPixels,
     uchar *srcData,
@@ -231,10 +233,15 @@ __global__ void icvUpdatePixelBackgroundNP(
     curandState_t *states
 )
 {
-    int posPixel = blockIdx.x * blockDim.x + threadIdx.x;
+    /* 2D */
+    int posCol = blockIdx.x * blockDim.x + threadIdx.x;
+    int posRow = blockIdx.y * blockDim.y + threadIdx.y;
+    int posPixel = cols * ( posRow - 1 ) + posCol;
+    /* 1D */
+    /* int posPixel = blockIdx.x * blockDim.x + threadIdx.x; */
     uchar *currPixel = srcData + posPixel * channels;
     //GPU parallel
-    if ( posPixel < totalPixels )
+    if ( posPixel < totalPixels && posCol < cols && posRow < rows )
     {
         // int posPixel = ncols * y + x;
         /* start addr of current pixel */
@@ -331,7 +338,15 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &dst, double learningRate )
     cudaMemcpy( d_imageData, image.ptr(), sizeof( uchar ) * totalPixels * image.channels(), cudaMemcpyHostToDevice );
     //cudaMemcpy(d_dstData,   dst.ptr(),   sizeof(uchar) * totalPixels, cudaMemcpyHostToDevice);
 
-    icvUpdatePixelBackgroundNP <<< ( totalPixels + 255 ) / 256, 256 >>> (
+    /* icvUpdatePixelBackgroundNP <<< ( totalPixels + 255 ) / 256, 256 >>> ( */
+    /* icvUpdatePixelBackgroundNP <<< ( totalPixels + 1023) / 1024, 1024 >>> ( */
+    /* dim3 threadsPerBlock( 32, 32 ); */
+    /* our video resolution 16:9 */
+    dim3 threadsPerBlock( 32, 18 );
+    dim3 numBlocks( image.cols + threadsPerBlock.x - 1 / threadsPerBlock.x, image.rows + threadsPerBlock.y - 1 / threadsPerBlock.y );
+    icvUpdatePixelBackgroundNP <<<numBlocks, threadsPerBlock>>> (
+        image.cols,
+        image.rows,
         image.channels(),
         totalPixels,
         d_imageData,
