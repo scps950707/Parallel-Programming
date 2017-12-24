@@ -1,15 +1,13 @@
 #include <opencv2/opencv.hpp>
+#include <opencv2/video/background_segm.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <stdlib.h>
 #include <iostream>
 #include <chrono>
 #include "MMESKNN.hpp"
 using namespace std;
-
-
-#include <opencv2/video/background_segm.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
 using namespace cv;
 
 //{ to do - paralelization ...
@@ -20,21 +18,13 @@ __device__ void _cvUpdatePixelBackgroundNP(
     int nSample,
     bool  *flag,
     uchar *Model,
-    uchar *NextLongUpdate,
-    uchar *NextMidUpdate,
-    uchar *NextShortUpdate,
     uchar *ModelIndexLong,
     uchar *ModelIndexMid,
     uchar *ModelIndexShort,
-    int LongCounter,
-    int MidCounter,
-    int ShortCounter,
-    int LongUpdate,
-    int MidUpdate,
-    int ShortUpdate,
-    bool include,
-    unsigned int seed,
-    curandState_t *states
+    bool LongUpdate,
+    bool MidUpdate,
+    bool ShortUpdate,
+    bool include
 )
 {
     // hold the offset
@@ -44,16 +34,9 @@ __device__ void _cvUpdatePixelBackgroundNP(
     long offsetShort = channels * ( *ModelIndexShort );
     long offsetMid   = channels * ( *ModelIndexMid  + nSample * 1 );
     long offsetLong  = channels * ( *ModelIndexLong + nSample * 2 );
-    // uint seed = time( NULL );
-
-    /* we have to initialize the state */
-    curand_init( seed, /* the seed controls the sequence of random values that are produced */
-                 blockIdx.x, /* the sequence number is only important with multiple cores */
-                 0, /* the offset is how much extra we advance in the sequence for each call, can be 0 */
-                 &states[blockIdx.x] );
 
     // Long update? --------------------------------------------------------------------------------------
-    if ( *NextLongUpdate == LongCounter )
+    if( LongUpdate )
     {
         // add the oldest pixel from Mid to the list of values (for each color)
         Model[offsetLong]     = Model[offsetMid];
@@ -63,13 +46,9 @@ __device__ void _cvUpdatePixelBackgroundNP(
         // increase the index
         *ModelIndexLong = ( *ModelIndexLong >= ( nSample - 1 ) ) ? 0 : ( *ModelIndexLong + 1 );
     }
-    if ( LongCounter == ( LongUpdate - 1 ) )
-    {
-        *NextLongUpdate = ( uchar )( curand( &states[blockIdx.x] ) % LongUpdate ); //0,...LongUpdate-1;
-    }
 
     // Mid update? --------------------------------------------------------------------------------------
-    if ( *NextMidUpdate == MidCounter )
+    if( MidUpdate )
     {
         // add this pixel to the list of values (for each color)
         Model[offsetMid]     = Model[offsetShort];
@@ -79,13 +58,9 @@ __device__ void _cvUpdatePixelBackgroundNP(
         // increase the index
         *ModelIndexMid = ( *ModelIndexMid >= ( nSample - 1 ) ) ? 0 : ( *ModelIndexMid + 1 );
     }
-    if ( MidCounter == ( MidUpdate - 1 ) )
-    {
-        *NextMidUpdate = ( uchar )( curand( &states[blockIdx.x] ) % MidUpdate );
-    }
 
     // Short update? --------------------------------------------------------------------------------------
-    if ( *NextShortUpdate == ShortCounter )
+    if( ShortUpdate )
     {
         // add this pixel to the list of values (for each color)
         Model[offsetShort]     = currPixel[0];
@@ -94,10 +69,6 @@ __device__ void _cvUpdatePixelBackgroundNP(
         flag[flagoffsetShort]  = include;
         // increase the index
         *ModelIndexShort = ( *ModelIndexShort >= ( nSample - 1 ) ) ? 0 : ( *ModelIndexShort + 1 );
-    }
-    if ( ShortCounter == ( ShortUpdate - 1 ) )
-    {
-        *NextShortUpdate = ( uchar )( curand( &states[blockIdx.x] ) % ShortUpdate );
     }
 }
 
@@ -211,37 +182,38 @@ __global__ void icvUpdatePixelBackgroundNP(
     uchar *dst,
     bool *flag,
     uchar *Model,
-    uchar *NextLongUpdate,
-    uchar *NextMidUpdate,
-    uchar *NextShortUpdate,
     uchar *ModelIndexLong,
     uchar *ModelIndexMid,
     uchar *ModelIndexShort,
+    int NextLongUpdate,
+    int NextMidUpdate,
+    int NextShortUpdate,
     int LongCounter,
     int MidCounter,
     int ShortCounter,
-    int LongUpdate,
-    int MidUpdate,
-    int ShortUpdate,
     int nSample,
     float Tb,
     int kNN,
     float Tau,
     bool ShadowDetection,
-    uchar ShadowValue,
-    unsigned int seed,
-    curandState_t *states
+    uchar ShadowValue
 )
 {
     /* 2D */
     int posCol = blockIdx.x * blockDim.x + threadIdx.x;
     int posRow = blockIdx.y * blockDim.y + threadIdx.y;
     int posPixel = cols * ( posRow - 1 ) + posCol;
+
     /* 1D */
     /* int posPixel = blockIdx.x * blockDim.x + threadIdx.x; */
+
     uchar *currPixel = srcData + posPixel * channels;
-    //GPU parallel
+
+    /* 2D */
     if ( posPixel < totalPixels && posCol < cols && posRow < rows )
+
+    /* 1D */
+    /* if ( posPixel < totalPixels) */
     {
         // int posPixel = ncols * y + x;
         /* start addr of current pixel */
@@ -268,21 +240,13 @@ __global__ void icvUpdatePixelBackgroundNP(
             nSample,
             flag + posPixel * nSample * 3,
             Model + posPixel * channels * nSample * 3,
-            NextLongUpdate + posPixel,
-            NextMidUpdate + posPixel,
-            NextShortUpdate + posPixel,
             ModelIndexLong + posPixel,
             ModelIndexMid + posPixel,
             ModelIndexShort + posPixel,
-            LongCounter,
-            MidCounter,
-            ShortCounter,
-            LongUpdate,
-            MidUpdate,
-            ShortUpdate,
-            include,
-            seed,
-            states
+            NextLongUpdate == LongCounter,
+            NextMidUpdate == MidCounter,
+            NextShortUpdate == ShortCounter,
+            include
         );
         switch ( result )
         {
@@ -332,19 +296,34 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &dst, double learningRate )
     int MidUpdate   = ( Kmid   / nSample ) + 1;
     int LongUpdate  = ( Klong  / nSample ) + 1;
 
+    if ( nLongCounter == ( LongUpdate - 1 ) )
+    {
+        nNextLongUpdate = rand() % LongUpdate;
+    }
+    if ( nMidCounter == ( MidUpdate - 1 ) )
+    {
+        nNextMidUpdate = rand() % MidUpdate;
+    }
+    if ( nShortCounter == ( ShortUpdate - 1 ) )
+    {
+        nNextShortUpdate = rand() % ShortUpdate;
+    }
     // cuda
     //rows:size().height ; cols:size().width
     int totalPixels = image.rows * image.cols;
     cudaMemcpy( d_imageData, image.ptr(), sizeof( uchar ) * totalPixels * image.channels(), cudaMemcpyHostToDevice );
-    //cudaMemcpy(d_dstData,   dst.ptr(),   sizeof(uchar) * totalPixels, cudaMemcpyHostToDevice);
 
+    /* 1D */
     /* icvUpdatePixelBackgroundNP <<< ( totalPixels + 255 ) / 256, 256 >>> ( */
     /* icvUpdatePixelBackgroundNP <<< ( totalPixels + 1023) / 1024, 1024 >>> ( */
+
+    /* 2D */
     /* dim3 threadsPerBlock( 32, 32 ); */
     /* our video resolution 16:9 */
-    dim3 threadsPerBlock( 32, 18 );
+    dim3 threadsPerBlock( 32, 8 );
     dim3 numBlocks( image.cols + threadsPerBlock.x - 1 / threadsPerBlock.x, image.rows + threadsPerBlock.y - 1 / threadsPerBlock.y );
     icvUpdatePixelBackgroundNP <<<numBlocks, threadsPerBlock>>> (
+
         image.cols,
         image.rows,
         image.channels(),
@@ -353,44 +332,24 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &dst, double learningRate )
         d_dstData,
         d_flag,
         d_bgmodel,
-        d_nNextLongUpdate,
-        d_nNextMidUpdate,
-        d_nNextShortUpdate,
         d_aModelIndexLong,
         d_aModelIndexMid,
         d_aModelIndexShort,
+        nNextLongUpdate,
+        nNextMidUpdate,
+        nNextShortUpdate,
         nLongCounter,
         nMidCounter,
         nShortCounter,
-        LongUpdate,
-        MidUpdate,
-        ShortUpdate,
         nSample,
         fTb,
         nkNN,
         fTau,
         ShadowDetection, // 1: do ShadowDetection
-        ShadowValue, // default = (uchar) 127
-        time( NULL ),
-        states
+        ShadowValue // default = (uchar) 127
     );
 
-    // cudaMemcpy(image.ptr(), d_imageData, sizeof(uchar) * totalPixels * image.channels(), cudaMemcpyDeviceToHost);
     cudaMemcpy( dst.ptr(),   d_dstData,   sizeof( uchar ) * totalPixels, cudaMemcpyDeviceToHost );
-    // cudaMemcpy(bgmodel, d_bgmodel, sizeof(uchar) * totalPixels * image.channels() * nSample * 3, cudaMemcpyDeviceToHost);
-    // cudaMemcpy(aModelIndexShort, d_aModelIndexShort, sizeof(uchar) * totalPixels, cudaMemcpyDeviceToHost);
-    // cudaMemcpy(aModelIndexMid  , d_aModelIndexMid  , sizeof(uchar) * totalPixels, cudaMemcpyDeviceToHost);
-    // cudaMemcpy(aModelIndexLong , d_aModelIndexLong , sizeof(uchar) * totalPixels, cudaMemcpyDeviceToHost);
-    // cudaMemcpy(nNextShortUpdate, d_nNextShortUpdate, sizeof(uchar) * totalPixels, cudaMemcpyDeviceToHost);
-    // cudaMemcpy(nNextMidUpdate  , d_nNextMidUpdate  , sizeof(uchar) * totalPixels, cudaMemcpyDeviceToHost);
-    // cudaMemcpy(nNextLongUpdate , d_nNextLongUpdate , sizeof(uchar) * totalPixels, cudaMemcpyDeviceToHost);
-    // cudaMemcpy(flag, d_flag, sizeof(bool) * nSample * 3 * totalPixels, cudaMemcpyDeviceToHost);
-
-    //int i;
-    //for(i=0; i<totalPixels; i++){
-    //    printf("%d\n", dst.data[i]);
-    //}
-    //printf("--------------------------------------------------\n");
 
     //update counters for the refresh rate
     //0,1,...,ShortUpdate-1

@@ -46,9 +46,9 @@ public:
         aModelIndexShort = NULL;
         aModelIndexMid = NULL;
         aModelIndexLong = NULL;
-        nNextShortUpdate = NULL;
-        nNextMidUpdate = NULL;
-        nNextLongUpdate = NULL;
+        nNextShortUpdate = 0;
+        nNextMidUpdate = 0;
+        nNextLongUpdate = 0;
     }
     //! the destructor
     ~MMESKNN()
@@ -58,9 +58,6 @@ public:
         delete[] aModelIndexShort;
         delete[] aModelIndexMid;
         delete[] aModelIndexLong;
-        delete[] nNextShortUpdate;
-        delete[] nNextMidUpdate;
-        delete[] nNextLongUpdate;
 
         cudaFree( d_imageData );
         cudaFree( d_dstData );
@@ -68,11 +65,7 @@ public:
         cudaFree( d_aModelIndexShort );
         cudaFree( d_aModelIndexMid );
         cudaFree( d_aModelIndexLong );
-        cudaFree( d_nNextShortUpdate );
-        cudaFree( d_nNextMidUpdate );
-        cudaFree( d_nNextLongUpdate );
         cudaFree( d_flag );
-        cudaFree( states );
     }
     //! the update operator
     void apply( cv::Mat &image, cv::Mat &fgmask, double learningRate = -1 );
@@ -100,9 +93,9 @@ public:
         aModelIndexMid = new uchar[totalPixels];
         aModelIndexLong = new uchar[totalPixels];
         //when to update next
-        nNextShortUpdate = new uchar[totalPixels];
-        nNextMidUpdate = new uchar[totalPixels];
-        nNextLongUpdate = new uchar[totalPixels];
+        nNextShortUpdate = 0;
+        nNextMidUpdate = 0;
+        nNextLongUpdate = 0;
 
         //Reset counters
         nShortCounter = 0;
@@ -112,9 +105,6 @@ public:
         std::fill( aModelIndexShort, aModelIndexShort + totalPixels, 0 );
         std::fill( aModelIndexMid, aModelIndexMid + totalPixels, 0 );
         std::fill( aModelIndexLong, aModelIndexLong + totalPixels, 0 );
-        std::fill( nNextShortUpdate, nNextShortUpdate + totalPixels, 0 );
-        std::fill( nNextMidUpdate, nNextMidUpdate + totalPixels, 0 );
-        std::fill( nNextLongUpdate, nNextLongUpdate + totalPixels, 0 );
 
         cudaMalloc( &d_imageData, sizeof( uchar ) * totalPixels * nchannels );
         cudaMalloc( &d_dstData,   sizeof( uchar ) * totalPixels );
@@ -122,21 +112,12 @@ public:
         cudaMalloc( &d_aModelIndexShort, sizeof( uchar ) * totalPixels );
         cudaMalloc( &d_aModelIndexMid,   sizeof( uchar ) * totalPixels );
         cudaMalloc( &d_aModelIndexLong,  sizeof( uchar ) * totalPixels );
-        cudaMalloc( &d_nNextShortUpdate, sizeof( uchar ) * totalPixels );
-        cudaMalloc( &d_nNextMidUpdate,   sizeof( uchar ) * totalPixels );
-        cudaMalloc( &d_nNextLongUpdate,  sizeof( uchar ) * totalPixels );
         cudaMalloc( &d_flag, sizeof( bool ) * nSample * 3 * totalPixels );
-        /* allocate space on the GPU for the random states */
-        cudaMalloc( ( void ** ) &states, sizeof( curandState_t ) * totalPixels );
 
-        //cudaMemcpy(d_dstData, dst.ptr(), sizeof(uchar) * totalPixels * image.channels(), cudaMemcpyHostToDevice);
         cudaMemcpy( d_bgmodel, bgmodel, sizeof( uchar ) * totalPixels * nchannels * nSample * 3, cudaMemcpyHostToDevice );
         cudaMemcpy( d_aModelIndexShort, aModelIndexShort, sizeof( uchar ) * totalPixels, cudaMemcpyHostToDevice );
         cudaMemcpy( d_aModelIndexMid  , aModelIndexMid  , sizeof( uchar ) * totalPixels, cudaMemcpyHostToDevice );
         cudaMemcpy( d_aModelIndexLong , aModelIndexLong , sizeof( uchar ) * totalPixels, cudaMemcpyHostToDevice );
-        cudaMemcpy( d_nNextShortUpdate, nNextShortUpdate, sizeof( uchar ) * totalPixels, cudaMemcpyHostToDevice );
-        cudaMemcpy( d_nNextMidUpdate  , nNextMidUpdate  , sizeof( uchar ) * totalPixels, cudaMemcpyHostToDevice );
-        cudaMemcpy( d_nNextLongUpdate , nNextLongUpdate , sizeof( uchar ) * totalPixels, cudaMemcpyHostToDevice );
         cudaMemcpy( d_flag, flag, sizeof( bool ) * nSample * 3 * totalPixels, cudaMemcpyHostToDevice );
     }
 
@@ -243,18 +224,14 @@ protected:
     uchar *aModelIndexShort;// index into the models
     uchar *aModelIndexMid;
     uchar *aModelIndexLong;
-    uchar *nNextShortUpdate;//random update points per model
-    uchar *nNextMidUpdate;
-    uchar *nNextLongUpdate;
+    int nNextShortUpdate;//random update points per model
+    int nNextMidUpdate;
+    int nNextLongUpdate;
 
     //cuda model data
     uchar *d_imageData, *d_dstData, *d_bgmodel;
     uchar *d_aModelIndexShort, *d_aModelIndexMid, *d_aModelIndexLong;
-    uchar *d_nNextShortUpdate, *d_nNextMidUpdate, *d_nNextLongUpdate;
     bool *d_flag;
-    /* CUDA's random number library uses curandState_t to keep track of the seed value
-       we will store a random state for every thread  */
-    curandState_t *states;
 };
 
 #endif
