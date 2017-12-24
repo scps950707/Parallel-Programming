@@ -44,9 +44,9 @@ public:
         aModelIndexShort = nullptr;
         aModelIndexMid = nullptr;
         aModelIndexLong = nullptr;
-        nNextShortUpdate = nullptr;
-        nNextMidUpdate = nullptr;
-        nNextLongUpdate = nullptr;
+        nNextShortUpdate = 0;
+        nNextMidUpdate = 0;
+        nNextLongUpdate = 0;
     }
     //! the destructor
     ~MMESKNN()
@@ -56,9 +56,6 @@ public:
         delete[] aModelIndexShort;
         delete[] aModelIndexMid;
         delete[] aModelIndexLong;
-        delete[] nNextShortUpdate;
-        delete[] nNextMidUpdate;
-        delete[] nNextLongUpdate;
     }
     //! the update operator
     void apply( cv::Mat &image, cv::Mat &fgmask, double learningRate = -1 );
@@ -66,6 +63,7 @@ public:
     //! re-initialization method
     void initialize( cv::Size frameSize, int frameType )
     {
+        srand( time( NULL ) );
         this->frameSize = frameSize;
         this->frameType = frameType;
         nframes = 0;
@@ -86,9 +84,9 @@ public:
         aModelIndexMid = new uchar[totalPixels];
         aModelIndexLong = new uchar[totalPixels];
         //when to update next
-        nNextShortUpdate = new uchar[totalPixels];
-        nNextMidUpdate = new uchar[totalPixels];
-        nNextLongUpdate = new uchar[totalPixels];
+        nNextShortUpdate = 0;
+        nNextMidUpdate = 0;
+        nNextLongUpdate = 0;
 
         //Reset counters
         nShortCounter = 0;
@@ -98,9 +96,6 @@ public:
         std::fill( aModelIndexShort, aModelIndexShort + totalPixels, 0 );
         std::fill( aModelIndexMid, aModelIndexMid + totalPixels, 0 );
         std::fill( aModelIndexLong, aModelIndexLong + totalPixels, 0 );
-        std::fill( nNextShortUpdate, nNextShortUpdate + totalPixels, 0 );
-        std::fill( nNextMidUpdate, nNextMidUpdate + totalPixels, 0 );
-        std::fill( nNextLongUpdate, nNextLongUpdate + totalPixels, 0 );
     }
 
     int getHistory() const
@@ -206,9 +201,9 @@ protected:
     uchar *aModelIndexShort;// index into the models
     uchar *aModelIndexMid;
     uchar *aModelIndexLong;
-    uchar *nNextShortUpdate;//random update points per model
-    uchar *nNextMidUpdate;
-    uchar *nNextLongUpdate;
+    int nNextShortUpdate;//random update points per model
+    int nNextMidUpdate;
+    int nNextLongUpdate;
 };
 
 #endif

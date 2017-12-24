@@ -14,18 +14,12 @@ _cvUpdatePixelBackgroundNP(
     int nSample,
     bool *flag,
     uchar *Model,
-    uchar *NextLongUpdate,
-    uchar *NextMidUpdate,
-    uchar *NextShortUpdate,
     uchar *ModelIndexLong,
     uchar *ModelIndexMid,
     uchar *ModelIndexShort,
-    int LongCounter,
-    int MidCounter,
-    int ShortCounter,
-    int LongUpdate,
-    int MidUpdate,
-    int ShortUpdate,
+    bool LongUpdate,
+    bool MidUpdate,
+    bool ShortUpdate,
     bool include
 )
 {
@@ -36,10 +30,8 @@ _cvUpdatePixelBackgroundNP(
     long offsetShort = channels * ( *ModelIndexShort );
     long offsetMid   = channels * ( *ModelIndexMid  + nSample * 1 );
     long offsetLong  = channels * ( *ModelIndexLong + nSample * 2 );
-    uint seed = time( NULL );
 
-    // Long update?
-    if ( *NextLongUpdate == LongCounter )
+    if ( LongUpdate )
     {
         // add the oldest pixel from Mid to the list of values (for each color)
         Model[offsetLong]     = Model[offsetMid];
@@ -49,13 +41,8 @@ _cvUpdatePixelBackgroundNP(
         // increase the index
         *ModelIndexLong = ( *ModelIndexLong >= ( nSample - 1 ) ) ? 0 : ( *ModelIndexLong + 1 );
     }
-    if ( LongCounter == ( LongUpdate - 1 ) )
-    {
-        *NextLongUpdate = ( uchar )( rand_r( &seed ) % LongUpdate ); //0,...LongUpdate-1;
-    }
 
-    // Mid update?
-    if ( *NextMidUpdate == MidCounter )
+    if ( MidUpdate )
     {
         // add this pixel to the list of values (for each color)
         Model[offsetMid]     = Model[offsetShort];
@@ -65,13 +52,8 @@ _cvUpdatePixelBackgroundNP(
         // increase the index
         *ModelIndexMid = ( *ModelIndexMid >= ( nSample - 1 ) ) ? 0 : ( *ModelIndexMid + 1 );
     }
-    if ( MidCounter == ( MidUpdate - 1 ) )
-    {
-        *NextMidUpdate = ( uchar )( rand_r( &seed ) % MidUpdate );
-    }
 
-    // Short update?
-    if ( *NextShortUpdate == ShortCounter )
+    if ( ShortUpdate )
     {
         // add this pixel to the list of values (for each color)
         Model[offsetShort]     = currPixel[0];
@@ -80,10 +62,6 @@ _cvUpdatePixelBackgroundNP(
         flag[flagoffsetShort]  = include;
         // increase the index
         *ModelIndexShort = ( *ModelIndexShort >= ( nSample - 1 ) ) ? 0 : ( *ModelIndexShort + 1 );
-    }
-    if ( ShortCounter == ( ShortUpdate - 1 ) )
-    {
-        *NextShortUpdate = ( uchar )( rand_r( &seed ) % ShortUpdate );
     }
 }
 
@@ -198,12 +176,12 @@ icvUpdatePixelBackgroundNP(
     uchar *dst,
     bool *flag,
     uchar *Model,
-    uchar *NextLongUpdate,
-    uchar *NextMidUpdate,
-    uchar *NextShortUpdate,
     uchar *ModelIndexLong,
     uchar *ModelIndexMid,
     uchar *ModelIndexShort,
+    int &NextLongUpdate,
+    int &NextMidUpdate,
+    int &NextShortUpdate,
     int &LongCounter,
     int &MidCounter,
     int &ShortCounter,
@@ -229,6 +207,18 @@ icvUpdatePixelBackgroundNP(
     int MidUpdate   = ( Kmid   / nSample ) + 1;
     int LongUpdate  = ( Klong  / nSample ) + 1;
 
+    if ( LongCounter == ( LongUpdate - 1 ) )
+    {
+        NextLongUpdate = rand() % LongUpdate;
+    }
+    if ( MidCounter == ( MidUpdate - 1 ) )
+    {
+        NextMidUpdate = rand() % MidUpdate;
+    }
+    if ( ShortCounter == ( ShortUpdate - 1 ) )
+    {
+        NextShortUpdate = rand() % ShortUpdate;
+    }
     //go through the image
     for ( long y = 0; y < nrows; y++ )
     {
@@ -260,18 +250,12 @@ icvUpdatePixelBackgroundNP(
                 nSample,
                 flag + posPixel * nSample * 3,
                 Model + posPixel * channels * nSample * 3,
-                NextLongUpdate + posPixel,
-                NextMidUpdate + posPixel,
-                NextShortUpdate + posPixel,
                 ModelIndexLong + posPixel,
                 ModelIndexMid + posPixel,
                 ModelIndexShort + posPixel,
-                LongCounter,
-                MidCounter,
-                ShortCounter,
-                LongUpdate,
-                MidUpdate,
-                ShortUpdate,
+                NextLongUpdate == LongCounter,
+                NextMidUpdate == MidCounter,
+                NextShortUpdate == ShortCounter,
                 include
             );
             switch ( result )
@@ -333,12 +317,12 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &fgmask, double learningRate )
         fgmask.ptr(),
         flag,
         bgmodel,
-        nNextLongUpdate,
-        nNextMidUpdate,
-        nNextShortUpdate,
         aModelIndexLong,
         aModelIndexMid,
         aModelIndexShort,
+        nNextLongUpdate,
+        nNextMidUpdate,
+        nNextShortUpdate,
         nLongCounter,
         nMidCounter,
         nShortCounter,
