@@ -2,8 +2,6 @@
 #define __MMESKNN_HPP__
 
 #include <opencv2/opencv.hpp>
-#include <curand.h>
-#include <curand_kernel.h>
 
 // default parameters of gaussian background detection algorithm
 static const int defaultHistory = 500; // Learning rate; alpha = 1/defaultHistory
@@ -36,36 +34,34 @@ public:
         //Tb - Threshold Tb*kernelwidth
         fTb = _dist2Threshold > 0 ? _dist2Threshold : defaultDist2Threshold;
 
-        ShadowValue = ( uchar )127; // value to use in the segmentation mask for shadows, set 0 not to do shadow detection
-        fTau = 0.5; // Tau - shadow threshold, see the paper for explanation
-        nLongCounter = 0;
-        nMidCounter = 0;
-        nShortCounter = 0;
-        bgmodel = NULL;
-        flag = NULL;
-        aModelIndexShort = NULL;
-        aModelIndexMid = NULL;
-        aModelIndexLong = NULL;
+        ShadowValue      = ( uchar )127;
+        // value to use in the segmentation mask for shadows, set 0 not to do shadow detection
+        fTau             = 0.5;
+        // Tau - shadow threshold, see the paper for explanation
+        nLongCounter     = 0;
+        nMidCounter      = 0;
+        nShortCounter    = 0;
         nNextShortUpdate = 0;
-        nNextMidUpdate = 0;
-        nNextLongUpdate = 0;
+        nNextMidUpdate   = 0;
+        nNextLongUpdate  = 0;
+        imageData        = NULL;
+        dstData          = NULL;
+        bgmodel          = NULL;
+        aModelIndexShort = NULL;
+        aModelIndexMid   = NULL;
+        aModelIndexLong  = NULL;
+        flag             = NULL;
     }
     //! the destructor
     ~MMESKNN()
     {
-        delete[] bgmodel;
-        delete[] flag;
-        delete[] aModelIndexShort;
-        delete[] aModelIndexMid;
-        delete[] aModelIndexLong;
-
-        cudaFree( d_imageData );
-        cudaFree( d_dstData );
-        cudaFree( d_bgmodel );
-        cudaFree( d_aModelIndexShort );
-        cudaFree( d_aModelIndexMid );
-        cudaFree( d_aModelIndexLong );
-        cudaFree( d_flag );
+        cudaFree( imageData );
+        cudaFree( dstData );
+        cudaFree( bgmodel );
+        cudaFree( aModelIndexShort );
+        cudaFree( aModelIndexMid );
+        cudaFree( aModelIndexLong );
+        cudaFree( flag );
     }
     //! the update operator
     void apply( cv::Mat &image, cv::Mat &fgmask, double learningRate = -1 );
@@ -82,43 +78,34 @@ public:
 
         // Reserve memory for the model
         int totalPixels = frameSize.height * frameSize.width;
-        // for each sample of 3 speed pixel models each pixel bg model we store ..., [short , mid , long]
-        bgmodel = new uchar[nSample * 3 * nchannels * totalPixels];
-        std::fill( bgmodel, bgmodel + nSample * 3 * nchannels * totalPixels, 0 );
-        flag = new bool[nSample * 3 * totalPixels];
-        std::fill( flag, flag + nSample * 3 * totalPixels, false );
 
-        //index through the three circular lists
-        aModelIndexShort = new uchar[totalPixels];
-        aModelIndexMid = new uchar[totalPixels];
-        aModelIndexLong = new uchar[totalPixels];
         //when to update next
         nNextShortUpdate = 0;
-        nNextMidUpdate = 0;
-        nNextLongUpdate = 0;
+        nNextMidUpdate   = 0;
+        nNextLongUpdate  = 0;
 
         //Reset counters
-        nShortCounter = 0;
-        nMidCounter = 0;
-        nLongCounter = 0;
+        nShortCounter    = 0;
+        nMidCounter      = 0;
+        nLongCounter     = 0;
 
-        std::fill( aModelIndexShort, aModelIndexShort + totalPixels, 0 );
-        std::fill( aModelIndexMid, aModelIndexMid + totalPixels, 0 );
-        std::fill( aModelIndexLong, aModelIndexLong + totalPixels, 0 );
+        // for each sample of 3 speed pixel models each pixel bg model we store ..., [short , mid , long]
 
-        cudaMalloc( &d_imageData, sizeof( uchar ) * totalPixels * nchannels );
-        cudaMalloc( &d_dstData,   sizeof( uchar ) * totalPixels );
-        cudaMalloc( &d_bgmodel, sizeof( uchar ) * totalPixels * nchannels * nSample * 3 );
-        cudaMalloc( &d_aModelIndexShort, sizeof( uchar ) * totalPixels );
-        cudaMalloc( &d_aModelIndexMid,   sizeof( uchar ) * totalPixels );
-        cudaMalloc( &d_aModelIndexLong,  sizeof( uchar ) * totalPixels );
-        cudaMalloc( &d_flag, sizeof( bool ) * nSample * 3 * totalPixels );
+        cudaMalloc( &imageData, sizeof( uchar ) * totalPixels * nchannels );
+        cudaMalloc( &dstData,   sizeof( uchar ) * totalPixels );
+        cudaMalloc( &bgmodel, sizeof( uchar ) * totalPixels * nchannels * nSample * 3 );
+        cudaMalloc( &aModelIndexShort, sizeof( uchar ) * totalPixels );
+        cudaMalloc( &aModelIndexMid,   sizeof( uchar ) * totalPixels );
+        cudaMalloc( &aModelIndexLong,  sizeof( uchar ) * totalPixels );
+        cudaMalloc( &flag, sizeof( bool ) * nSample * 3 * totalPixels );
 
-        cudaMemcpy( d_bgmodel, bgmodel, sizeof( uchar ) * totalPixels * nchannels * nSample * 3, cudaMemcpyHostToDevice );
-        cudaMemcpy( d_aModelIndexShort, aModelIndexShort, sizeof( uchar ) * totalPixels, cudaMemcpyHostToDevice );
-        cudaMemcpy( d_aModelIndexMid  , aModelIndexMid  , sizeof( uchar ) * totalPixels, cudaMemcpyHostToDevice );
-        cudaMemcpy( d_aModelIndexLong , aModelIndexLong , sizeof( uchar ) * totalPixels, cudaMemcpyHostToDevice );
-        cudaMemcpy( d_flag, flag, sizeof( bool ) * nSample * 3 * totalPixels, cudaMemcpyHostToDevice );
+        cudaMemset( &imageData, 0, sizeof( uchar ) * totalPixels * nchannels );
+        cudaMemset( &dstData, 0,   sizeof( uchar ) * totalPixels );
+        cudaMemset( &bgmodel, 0, sizeof( uchar ) * totalPixels * nchannels * nSample * 3 );
+        cudaMemset( &aModelIndexShort, 0, sizeof( uchar ) * totalPixels );
+        cudaMemset( &aModelIndexMid, 0,   sizeof( uchar ) * totalPixels );
+        cudaMemset( &aModelIndexLong, 0,  sizeof( uchar ) * totalPixels );
+        cudaMemset( &flag, 0, sizeof( bool ) * nSample * 3 * totalPixels );
     }
 
     int getHistory() const
@@ -219,19 +206,18 @@ protected:
     int nLongCounter;//circular counter
     int nMidCounter;
     int nShortCounter;
-    uchar *bgmodel; // model data pixel values
-    bool *flag; // pixel is included in current model
-    uchar *aModelIndexShort;// index into the models
-    uchar *aModelIndexMid;
-    uchar *aModelIndexLong;
     int nNextShortUpdate;//random update points per model
     int nNextMidUpdate;
     int nNextLongUpdate;
 
     //cuda model data
-    uchar *d_imageData, *d_dstData, *d_bgmodel;
-    uchar *d_aModelIndexShort, *d_aModelIndexMid, *d_aModelIndexLong;
-    bool *d_flag;
+    uchar *imageData;
+    uchar *dstData;
+    uchar *bgmodel;
+    uchar *aModelIndexShort;
+    uchar *aModelIndexMid;
+    uchar *aModelIndexLong;
+    bool *flag;
 };
 
 #endif

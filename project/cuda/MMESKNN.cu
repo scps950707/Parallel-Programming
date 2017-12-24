@@ -36,7 +36,7 @@ __device__ void _cvUpdatePixelBackgroundNP(
     long offsetLong  = channels * ( *ModelIndexLong + nSample * 2 );
 
     // Long update? --------------------------------------------------------------------------------------
-    if( LongUpdate )
+    if ( LongUpdate )
     {
         // add the oldest pixel from Mid to the list of values (for each color)
         Model[offsetLong]     = Model[offsetMid];
@@ -48,7 +48,7 @@ __device__ void _cvUpdatePixelBackgroundNP(
     }
 
     // Mid update? --------------------------------------------------------------------------------------
-    if( MidUpdate )
+    if ( MidUpdate )
     {
         // add this pixel to the list of values (for each color)
         Model[offsetMid]     = Model[offsetShort];
@@ -60,7 +60,7 @@ __device__ void _cvUpdatePixelBackgroundNP(
     }
 
     // Short update? --------------------------------------------------------------------------------------
-    if( ShortUpdate )
+    if ( ShortUpdate )
     {
         // add this pixel to the list of values (for each color)
         Model[offsetShort]     = currPixel[0];
@@ -212,8 +212,8 @@ __global__ void icvUpdatePixelBackgroundNP(
     /* 2D */
     if ( posPixel < totalPixels && posCol < cols && posRow < rows )
 
-    /* 1D */
-    /* if ( posPixel < totalPixels) */
+        /* 1D */
+        /* if ( posPixel < totalPixels) */
     {
         // int posPixel = ncols * y + x;
         /* start addr of current pixel */
@@ -311,7 +311,7 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &dst, double learningRate )
     // cuda
     //rows:size().height ; cols:size().width
     int totalPixels = image.rows * image.cols;
-    cudaMemcpy( d_imageData, image.ptr(), sizeof( uchar ) * totalPixels * image.channels(), cudaMemcpyHostToDevice );
+    cudaMemcpy( imageData, image.ptr(), sizeof( uchar ) * totalPixels * image.channels(), cudaMemcpyHostToDevice );
 
     /* 1D */
     /* icvUpdatePixelBackgroundNP <<< ( totalPixels + 255 ) / 256, 256 >>> ( */
@@ -328,13 +328,13 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &dst, double learningRate )
         image.rows,
         image.channels(),
         totalPixels,
-        d_imageData,
-        d_dstData,
-        d_flag,
-        d_bgmodel,
-        d_aModelIndexLong,
-        d_aModelIndexMid,
-        d_aModelIndexShort,
+        imageData,
+        dstData,
+        flag,
+        bgmodel,
+        aModelIndexLong,
+        aModelIndexMid,
+        aModelIndexShort,
         nNextLongUpdate,
         nNextMidUpdate,
         nNextShortUpdate,
@@ -349,7 +349,7 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &dst, double learningRate )
         ShadowValue // default = (uchar) 127
     );
 
-    cudaMemcpy( dst.ptr(),   d_dstData,   sizeof( uchar ) * totalPixels, cudaMemcpyDeviceToHost );
+    cudaMemcpy( dst.ptr(),   dstData,   sizeof( uchar ) * totalPixels, cudaMemcpyDeviceToHost );
 
     //update counters for the refresh rate
     //0,1,...,ShortUpdate-1
