@@ -128,42 +128,40 @@ __device__ int _cvCheckPixelBackgroundNP(
         int Ps = 0; // the total probability that this pixel is background shadow
         for ( int n = 0; n < nSample * 3; n++ )
         {
-            uchar *mean_m = Model + n * channels;
-
             if ( flag[n] ) //check only background
             {
-                float numerator = 0.0f;
-                float denominator = 0.0f;
-                for ( int c = 0; c < channels; c++ )
-                {
-                    numerator   += currPixel[c] * mean_m[c];
-                    denominator += mean_m[c] * mean_m[c];
-                }
+                float numerator = Model[n * channels] * currPixel[0]
+                                  + Model[n * channels + 1] * currPixel[1]
+                                  + Model[n * channels + 2] * currPixel[2];
+                float denominator = Model[n * channels] * Model[n * channels]
+                                    + Model[n * channels + 1] * Model[n * channels + 1]
+                                    + Model[n * channels + 2] * Model[n * channels + 2];
 
                 // no division by zero allowed
                 if ( denominator == 0 )
                 {
-                    return 0; //dst[pixel]=255
+                    return 0;
                 }
 
                 // if tau < a < 1 then also check the color distortion
                 if ( numerator <= denominator && numerator >= tau * denominator )
                 {
                     float a = numerator / denominator;
-                    float dist2a = 0.0f;
+                    float dist2a = 0.0f, dD;
 
-                    for ( int c = 0; c < channels; c++ )
-                    {
-                        float dD = a * mean_m[c] - currPixel[c];
-                        dist2a += dD * dD;
-                    }
+                    dD = a * Model[n * channels] - currPixel[0];
+                    dist2a += dD * dD;
+                    dD = a * Model[n * channels + 1] - currPixel[1];
+                    dist2a += dD * dD;
+                    dD = a * Model[n * channels + 2] - currPixel[2];
+                    dist2a += dD * dD;
 
                     if ( dist2a < Tb * a * a )
                     {
                         Ps++;
                         if ( Ps >= kNN ) //shadow
                         {
-                            return 2; //dst[[pixel]=ShadowValue
+                            return 2;
                         }
                     }
                 }
