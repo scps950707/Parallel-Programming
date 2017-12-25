@@ -10,6 +10,7 @@
 using namespace std;
 using namespace cv;
 
+std::chrono::duration<double> BGtime = std::chrono::duration<double>::zero();
 //{ to do - paralelization ...
 //struct KNNInvoker....
 __device__ void _cvUpdatePixelBackgroundNP(
@@ -310,6 +311,7 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &dst, double learningRate )
     //rows:size().height ; cols:size().width
     int totalPixels = image.rows * image.cols;
     cudaMemcpy( imageData, image.ptr(), sizeof( uchar ) * totalPixels * image.channels(), cudaMemcpyHostToDevice );
+    auto t1 = std::chrono::system_clock::now();
 
     /* 1D */
     /* icvUpdatePixelBackgroundNP <<< ( totalPixels + 255 ) / 256, 256 >>> ( */
@@ -346,7 +348,9 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &dst, double learningRate )
         ShadowDetection, // 1: do ShadowDetection
         ShadowValue // default = (uchar) 127
     );
-
+    cudaDeviceSynchronize();
+    auto t2 = std::chrono::system_clock::now();
+    BGtime += t2 - t1;
     cudaMemcpy( dst.ptr(),   dstData,   sizeof( uchar ) * totalPixels, cudaMemcpyDeviceToHost );
 
     //update counters for the refresh rate
@@ -383,19 +387,15 @@ int main( int argc, char *argv[] )
         input.set( CV_CAP_PROP_POS_FRAMES, atoi( argv[2] ) * 30 );
     }
     VideoWriter writer;
-    input.read(frame);
+    input.read( frame );
     writer.open( "./output.avi", cv::VideoWriter::fourcc( 'M', 'J', 'P', 'G' ), 30.0, frame.size() );
-    std::chrono::duration<double> BGtime = std::chrono::duration<double>::zero();
     while ( true )
     {
         if ( !( input.read( frame ) ) ) //get one frame form video
         {
             break;
         }
-        auto t1 = std::chrono::system_clock::now();
         BG->apply( frame, output );
-        auto t2 = std::chrono::system_clock::now();
-        BGtime += t2 - t1;
         /* imshow( "Origin", frame ); */
         /* imshow( "KNN", output ); */
         /* if ( waitKey( 30 ) >= 0 ) */
