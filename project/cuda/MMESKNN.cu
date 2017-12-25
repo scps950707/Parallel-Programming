@@ -11,8 +11,7 @@ using namespace std;
 using namespace cv;
 
 std::chrono::duration<double> BGtime = std::chrono::duration<double>::zero();
-//{ to do - paralelization ...
-//struct KNNInvoker....
+
 __device__ __forceinline__ void _cvUpdatePixelBackgroundNP(
     const uchar *currPixel,
     int channels,
@@ -317,7 +316,6 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &dst, double learningRate )
 
     /* 2D */
     /* dim3 threadsPerBlock( 32, 32 ); */
-    /* our video resolution 16:9 */
     dim3 threadsPerBlock( 32, 8 );
     dim3 numBlocks( ( image.cols + threadsPerBlock.x - 1 ) / threadsPerBlock.x, ( image.rows + threadsPerBlock.y - 1 ) / threadsPerBlock.y );
     icvUpdatePixelBackgroundNP <<<numBlocks, threadsPerBlock>>> (
@@ -376,8 +374,6 @@ int main( int argc, char *argv[] )
 
     auto start = std::chrono::system_clock::now();
     MMESKNN *BG = new MMESKNN();
-    /* Ptr<BackgroundSubtractor> BG = createBackgroundSubtractorMOG2(); */
-    /* Ptr<BackgroundSubtractor> BG = createBackgroundSubtractorKNN(); */
 
     VideoCapture input( argv[1] );
     if ( argc == 3 )

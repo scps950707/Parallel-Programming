@@ -17,8 +17,6 @@ int main( int argc, char *argv[] )
 
     auto start = std::chrono::system_clock::now();
     MMESKNN *BG = new MMESKNN();
-    /* Ptr<BackgroundSubtractor> BG = createBackgroundSubtractorMOG2(); */
-    /* Ptr<BackgroundSubtractor> BG = createBackgroundSubtractorKNN(); */
 
     VideoCapture input( argv[1] );
     if ( argc == 3 )

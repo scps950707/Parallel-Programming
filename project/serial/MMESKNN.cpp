@@ -4,9 +4,6 @@
 #include "MMESKNN.hpp"
 using namespace std;
 
-
-//{ to do - paralelization ...
-//struct KNNInvoker....
 static inline void
 _cvUpdatePixelBackgroundNP(
     const uchar *currPixel,
