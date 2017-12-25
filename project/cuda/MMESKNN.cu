@@ -319,8 +319,8 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &dst, double learningRate )
     /* dim3 threadsPerBlock( 32, 32 ); */
     /* our video resolution 16:9 */
     dim3 threadsPerBlock( 32, 8 );
-    dim3 numBlocks( image.cols + threadsPerBlock.x - 1 / threadsPerBlock.x, image.rows + threadsPerBlock.y - 1 / threadsPerBlock.y );
-    icvUpdatePixelBackgroundNP <<<numBlocks, threadsPerBlock>>> (
+    dim3 numBlocks( ( image.cols + threadsPerBlock.x - 1 ) / threadsPerBlock.x, ( image.rows + threadsPerBlock.y - 1 ) / threadsPerBlock.y );
+    icvUpdatePixelBackgroundNP <<< numBlocks, threadsPerBlock>>> (
 
         image.cols,
         image.rows,
