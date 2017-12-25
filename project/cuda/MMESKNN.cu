@@ -13,7 +13,7 @@ using namespace cv;
 std::chrono::duration<double> BGtime = std::chrono::duration<double>::zero();
 //{ to do - paralelization ...
 //struct KNNInvoker....
-__device__ void _cvUpdatePixelBackgroundNP(
+__device__ __forceinline__ void _cvUpdatePixelBackgroundNP(
     const uchar *currPixel,
     int channels,
     int nSample,
@@ -73,7 +73,7 @@ __device__ void _cvUpdatePixelBackgroundNP(
     }
 }
 
-__device__ int _cvCheckPixelBackgroundNP(
+__device__ __forceinline__ int _cvCheckPixelBackgroundNP(
     const uchar *currPixel,
     int channels,
     int nSample,
@@ -206,14 +206,12 @@ __global__ void icvUpdatePixelBackgroundNP(
     /* 1D */
     /* int posPixel = blockIdx.x * blockDim.x + threadIdx.x; */
 
-    uchar *currPixel = srcData + posPixel * channels;
-
     /* 2D */
     if ( posPixel < totalPixels && posCol < cols && posRow < rows )
-
         /* 1D */
         /* if ( posPixel < totalPixels) */
     {
+        uchar *currPixel = srcData + posPixel * channels;
         // int posPixel = ncols * y + x;
         /* start addr of current pixel */
 
@@ -322,7 +320,7 @@ void MMESKNN::apply( cv::Mat &image, cv::Mat &dst, double learningRate )
     /* our video resolution 16:9 */
     dim3 threadsPerBlock( 32, 8 );
     dim3 numBlocks( ( image.cols + threadsPerBlock.x - 1 ) / threadsPerBlock.x, ( image.rows + threadsPerBlock.y - 1 ) / threadsPerBlock.y );
-    icvUpdatePixelBackgroundNP <<< numBlocks, threadsPerBlock>>> (
+    icvUpdatePixelBackgroundNP <<<numBlocks, threadsPerBlock>>> (
 
         image.cols,
         image.rows,
