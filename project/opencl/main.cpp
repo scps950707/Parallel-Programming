@@ -10,9 +10,10 @@ using namespace cv;
 int main( int argc, char *argv[] )
 {
 
-    UMat frame;
-    UMat output;
-    Mat writeout;
+    Mat frame;
+    Mat output;
+    UMat Uoutput;
+    /* Mat writeout; */
 
     auto start = std::chrono::system_clock::now();
     //Ptr<BackgroundSubtractor> BG = createBackgroundSubtractorMOG2();
@@ -24,8 +25,8 @@ int main( int argc, char *argv[] )
     {
         input.set( CV_CAP_PROP_POS_FRAMES, atoi( argv[2] ) * 30 );
     }
-    VideoWriter writer;
-    writer.open( "./output.avi", cv::VideoWriter::fourcc( 'M', 'J', 'P', 'G' ), 30.0, frame.size() );
+    /* VideoWriter writer; */
+    /* writer.open( "./output.avi", cv::VideoWriter::fourcc( 'M', 'J', 'P', 'G' ), 30.0, frame.size() ); */
     std::chrono::duration<double> BGtime = std::chrono::duration<double>::zero();
     while ( true )
     {
@@ -34,14 +35,15 @@ int main( int argc, char *argv[] )
             break;
         }
         auto t1 = std::chrono::system_clock::now();
-        BG->apply( frame, output );
+        BG->apply( UMat( frame ), Uoutput );
         auto t2 = std::chrono::system_clock::now();
+        Uoutput.copyTo( output );
         //BG->getBackgroundImage( output );
         BGtime += t2 - t1;
-        //imshow( "Origin", frame );
-        //imshow( "KNN", output );
-        cv::cvtColor( output, writeout, CV_GRAY2BGR );
-        writer << writeout;
+        imshow( "Origin", frame );
+        imshow( "KNN", output );
+        /* cv::cvtColor( output, writeout, CV_GRAY2BGR ); */
+        /* writer << writeout; */
     }
     std::chrono::duration<double> totalTime = std::chrono::system_clock::now() - start;
     cout << "BG time: " << BGtime.count() << "s\n";
