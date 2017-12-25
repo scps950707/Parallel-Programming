@@ -1,7 +1,9 @@
 #include <opencv2/opencv.hpp>
 #include <stdlib.h>
 #include <iostream>
+#include <omp.h>
 #include "MMESKNN.hpp"
+#define NUM_THREADS 1
 using namespace std;
 
 
@@ -218,6 +220,9 @@ icvUpdatePixelBackgroundNP(
         NextShortUpdate = rand() % ShortUpdate;
     }
     //go through the image
+    omp_set_num_threads( NUM_THREADS );
+    /* #pragma omp parallel for schedule(static,20) */
+    /* #pragma omp parallel for schedule(auto,20) */
     #pragma omp parallel for schedule(dynamic,20)
     for ( long y = 0; y < nrows; y++ )
     {
