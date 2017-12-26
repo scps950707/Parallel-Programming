@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 2.8)
+project( project )
+find_package( OpenCV REQUIRED )
+find_package(CUDA QUIET REQUIRED)
+# GTX 1060 (Pascal arch) are used
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} ${CUDA_ARCH} --std=c++11 -O3 --gpu-architecture=compute_61 )
+CUDA_INCLUDE_DIRECTORIES(${CUDA_LIBRARY_DIRS})
+CUDA_ADD_EXECUTABLE( main  MMESKNN.cu )
+target_link_libraries( main ${OpenCV_LIBS} ${CUDA_LIBRARIES} )
+#set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
